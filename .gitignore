@@ -1,0 +1,25 @@
+# ROS2 colcon 编译目录
+build/
+install/
+log/
+
+# 各种缓存、临时文件
+*.log
+*.swp
+*~
+.DS_Store
+__pycache__/
+*.pyc
+
+# CMake 中间文件
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# 仿真产生的临时文件
+*.model
+*.tmp
+
+# VSCode 配置（可选，按需保留）
+.vscode/
