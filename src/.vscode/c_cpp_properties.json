@@ -5,7 +5,8 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "/usr/include/**",
-                "/opt/ros/humble/include/**"
+                "/opt/ros/humble/include/**",
+                "~/data/Project_Backup/orbbec_software/ros2_ws/third_party/onnxruntime/include/**"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

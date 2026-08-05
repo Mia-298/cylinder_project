@@ -72,7 +72,7 @@ def generate_launch_description():
     args = [
         DeclareLaunchArgument('device_type', default_value='camera'),
         DeclareLaunchArgument('camera_name', default_value='camera'),
-        DeclareLaunchArgument('depth_registration', default_value='false'),
+        DeclareLaunchArgument('depth_registration', default_value='true'),
         DeclareLaunchArgument('serial_number', default_value=''),
         DeclareLaunchArgument('usb_port', default_value=''),
         DeclareLaunchArgument('device_num', default_value='1'),
@@ -89,7 +89,7 @@ def generate_launch_description():
         DeclareLaunchArgument('point_cloud_qos', default_value='default'),
         DeclareLaunchArgument('enable_point_cloud', default_value='true'),
         DeclareLaunchArgument('point_cloud_decimation_filter_factor', default_value='1'),
-        DeclareLaunchArgument('enable_colored_point_cloud', default_value='false'),
+        DeclareLaunchArgument('enable_colored_point_cloud', default_value='true'),
         DeclareLaunchArgument('cloud_frame_id', default_value=''),
         DeclareLaunchArgument('connection_delay', default_value='10'),
         DeclareLaunchArgument('color_width', default_value='0'),
@@ -219,7 +219,7 @@ def generate_launch_description():
         DeclareLaunchArgument('software_trigger_period', default_value='33'),  # ms
         DeclareLaunchArgument('enable_ptp_config', default_value='false'),#Only for Gemini 335Le
         DeclareLaunchArgument('enable_frame_sync', default_value='true'),
-        DeclareLaunchArgument('ordered_pc', default_value='false'),
+        DeclareLaunchArgument('ordered_pc', default_value='true'),
         DeclareLaunchArgument('enable_depth_scale', default_value='true'),
         DeclareLaunchArgument('enable_decimation_filter', default_value='false'),
         DeclareLaunchArgument('enable_hdr_merge', default_value='false'),
