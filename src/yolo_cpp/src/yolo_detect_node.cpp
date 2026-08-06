@@ -54,6 +54,9 @@ YoloDetectNode::YoloDetectNode()
   
   detector_ = std::make_unique<YoloV8Detector>(model_path_);
   SphereFitParameters sphere_parameters;
+  sphere_fitter_ =
+    std::make_unique<SphereFitter>(
+    sphere_parameters);
   point_cloud_subscription_ =
     create_subscription<
     sensor_msgs::msg::PointCloud2>(
@@ -376,6 +379,125 @@ void YoloDetectNode::processCapturedBundle(
         detection.center.x,
         detection.center.y);
     }
+    // 筛选画面中置信度最高的气缸
+    const Detection * best_detection =
+      nullptr;
+
+    for (const Detection & detection :
+        detections)
+    {
+      if (
+        !sphere_target_class_.empty() &&
+        detection.class_name !=
+          sphere_target_class_)
+      {
+        continue;
+      }
+
+      if (
+        best_detection == nullptr ||
+        detection.confidence >
+          best_detection->confidence)
+      {
+        best_detection = &detection;
+      }
+    }
+
+    std::vector<LocatedDetection>
+      located_detections;
+    if (best_detection == nullptr) {
+  RCLCPP_WARN(
+    get_logger(),
+    "Capture cycle %llu: no detection matched "
+    "sphere target class '%s'; sphere fitting skipped",
+    static_cast<unsigned long long>(
+      cycle_index),
+    sphere_target_class_.c_str());
+
+} else {
+  RCLCPP_INFO(
+    get_logger(),
+    "Capture cycle %llu: starting sphere fitting "
+    "using detection box=[x=%d y=%d w=%d h=%d]",
+    static_cast<unsigned long long>(
+      cycle_index),
+    best_detection->box.x,
+    best_detection->box.y,
+    best_detection->box.width,
+    best_detection->box.height);
+
+  LocatedDetection located;
+  located.detection =
+    *best_detection;
+
+  const auto sphere_fit_start =
+    std::chrono::steady_clock::now();
+
+  located.sphere =
+    sphere_fitter_->fit(
+    cloud,
+    best_detection->box,
+    frame.size());
+
+  const auto sphere_fit_end =
+    std::chrono::steady_clock::now();
+
+  const double sphere_fit_time_ms =
+    std::chrono::duration<
+    double,
+    std::milli>(
+    sphere_fit_end -
+    sphere_fit_start).count();
+
+  if (located.sphere.success) {
+    RCLCPP_INFO(
+      get_logger(),
+      "Capture cycle %llu: sphere fit SUCCESS; "
+      "center=[%.6f %.6f %.6f] m, "
+      "radius=%.6f m, "
+      "ROI=[x=%d y=%d w=%d h=%d], "
+      "inliers=%zu/%zu, ratio=%.4f, "
+      "RMS=%.6f m, fit_time=%.3f ms",
+      static_cast<unsigned long long>(
+        cycle_index),
+      located.sphere.center_m.x(),
+      located.sphere.center_m.y(),
+      located.sphere.center_m.z(),
+      located.sphere.radius_m,
+      located.sphere.cloud_roi.x,
+      located.sphere.cloud_roi.y,
+      located.sphere.cloud_roi.width,
+      located.sphere.cloud_roi.height,
+      located.sphere.inlier_count,
+      located.sphere.roi_point_count,
+      located.sphere.inlier_ratio,
+      located.sphere.rms_residual_m,
+      sphere_fit_time_ms);
+
+  } else {
+    RCLCPP_WARN(
+      get_logger(),
+      "Capture cycle %llu: sphere fit FAILED; "
+      "reason=%s, "
+      "ROI=[x=%d y=%d w=%d h=%d], "
+      "inliers=%zu/%zu, ratio=%.4f, "
+      "fit_time=%.3f ms",
+      static_cast<unsigned long long>(
+        cycle_index),
+      located.sphere.failure_reason.c_str(),
+      located.sphere.cloud_roi.x,
+      located.sphere.cloud_roi.y,
+      located.sphere.cloud_roi.width,
+      located.sphere.cloud_roi.height,
+      located.sphere.inlier_count,
+      located.sphere.roi_point_count,
+      located.sphere.inlier_ratio,
+      sphere_fit_time_ms);
+  }
+
+  located_detections.push_back(
+    std::move(located));
+}
 
   // 以下是窗口测试
   {
@@ -492,6 +614,52 @@ void YoloDetectNode::processCapturedBundle(
       2,
       cv::LINE_AA);
   }
+  if(located_detections.empty()){
+    cv::putText(
+      display_frame,
+      "sphere_fit_false",
+      cv::Point(30, 120),
+      cv::FONT_HERSHEY_SIMPLEX,
+      0.65,
+      cv::Scalar(0, 0, 255),
+      2,
+      cv::LINE_AA);
+  }
+  else{
+    const SphereFitResult & sphere =
+      located_detections.front().sphere;
+
+    const double distance_m =
+      static_cast<double>(
+        sphere.center_m.norm());
+
+    std::ostringstream text_stream;
+
+    text_stream
+      << std::fixed
+      << std::setprecision(3)
+      << "center: ["
+      << sphere.center_m.x()
+      << ", "
+      << sphere.center_m.y()
+      << ", "
+      << sphere.center_m.z()
+      << "] m"
+      << "  distance: "
+      << distance_m
+      << " m";
+
+    cv::putText(
+      display_frame,
+      text_stream.str(),
+      cv::Point(30, 120),
+      cv::FONT_HERSHEY_SIMPLEX,
+      0.65,
+      cv::Scalar(0, 255, 0),
+      2,
+      cv::LINE_AA);
+
+  }
 
   /*
    * 显示当前采集轮次。
@@ -541,7 +709,8 @@ void YoloDetectNode::processCapturedBundle(
       latest_snapshot_.detections =
         std::move(detections);
 
-      latest_snapshot_.located_detections.clear();
+      latest_snapshot_.located_detections =
+        std::move(located_detections);
     }
 
   } catch (const cv_bridge::Exception & error) {

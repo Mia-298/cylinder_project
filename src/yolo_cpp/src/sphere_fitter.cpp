@@ -23,7 +23,9 @@ bool isFinitePoint(const pcl::PointXYZ & point)
 cv::Rect clipAndShrinkRoi(
   const cv::Rect & image_box,
   const cv::Size & image_size,
-  const float shrink_ratio)
+  const float horizontal_shrink_ratio,
+  const float top_shrink_ratio,
+  const float bottom_shrink_ratio)
 {
   const cv::Rect image_bounds(
     0,
@@ -31,33 +33,74 @@ cv::Rect clipAndShrinkRoi(
     image_size.width,
     image_size.height);
 
-  const cv::Rect clipped = image_box & image_bounds;
+  /*
+   * 先把 YOLO 框限制在图像范围内。
+   */
+  const cv::Rect clipped =
+    image_box & image_bounds;
 
-  if (clipped.width <= 0 || clipped.height <= 0) {
+  if (
+    clipped.width <= 0 ||
+    clipped.height <= 0)
+  {
     return {};
   }
 
-  const int shrink_x = static_cast<int>(
+  /*
+   * 左右对称裁剪。
+   * 当前设置为 0.0，因此左右不裁剪。
+   */
+  const int shrink_x =
+    static_cast<int>(
     std::lround(
       static_cast<double>(clipped.width) *
-      static_cast<double>(shrink_ratio)));
+      static_cast<double>(
+        horizontal_shrink_ratio)));
 
-  const int shrink_y = static_cast<int>(
+  /*
+   * 上下分别采用不同的裁剪比例。
+   */
+  const int shrink_top =
+    static_cast<int>(
     std::lround(
       static_cast<double>(clipped.height) *
-      static_cast<double>(shrink_ratio)));
+      static_cast<double>(
+        top_shrink_ratio)));
 
-  const cv::Rect shrunk(
-    clipped.x + shrink_x,
-    clipped.y + shrink_y,
-    clipped.width - 2 * shrink_x,
-    clipped.height - 2 * shrink_y);
+  const int shrink_bottom =
+    static_cast<int>(
+    std::lround(
+      static_cast<double>(clipped.height) *
+      static_cast<double>(
+        bottom_shrink_ratio)));
 
-  if (shrunk.width <= 0 || shrunk.height <= 0) {
-    return clipped;
+  const int new_x =
+    clipped.x + shrink_x;
+
+  const int new_y =
+    clipped.y + shrink_top;
+
+  const int new_width =
+    clipped.width -
+    2 * shrink_x;
+
+  const int new_height =
+    clipped.height -
+    shrink_top -
+    shrink_bottom;
+
+  if (
+    new_width <= 0 ||
+    new_height <= 0)
+  {
+    return {};
   }
 
-  return shrunk;
+  return cv::Rect(
+    new_x,
+    new_y,
+    new_width,
+    new_height);
 }
 
 cv::Rect imageRoiToCloudRoi(
@@ -230,7 +273,9 @@ SphereFitResult SphereFitter::fit(
   const cv::Rect image_roi = clipAndShrinkRoi(
     image_box,
     image_size,
-    parameters_.roi_shrink_ratio);
+    parameters_.roi_shrink_ratio,
+    parameters_.roi_shrink_top_ratio,
+    parameters_.roi_shrink_bottom_ratio);
 
   if (image_roi.width <= 0 || image_roi.height <= 0) {
     result.failure_reason =

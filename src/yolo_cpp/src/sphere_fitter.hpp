@@ -17,7 +17,7 @@ struct SphereFitParameters
 
   // 设置球体半径
   float min_radius_m{0.08F};
-  float max_radius_m{0.93F};
+  float max_radius_m{0.093F};
 
   float distance_threshold_m{0.006F};
   int max_iterations{1200};
@@ -26,10 +26,15 @@ struct SphereFitParameters
   std::size_t min_roi_points{120};
   std::size_t min_inliers{80};
   float min_inlier_ratio{0.25F};
+  // 从检测框顶部裁剪原高度的 30%。
+  float roi_shrink_top_ratio{0.30F};
+  // 从检测框底部裁剪原高度的 15%。
+  float roi_shrink_bottom_ratio{0.15F};
+
 
   // Remove a small band near the YOLO box boundary, where background
   // and occluding structures are most likely to enter the ROI.
-  float roi_shrink_ratio{0.05F};
+  float roi_shrink_ratio{0.0F};
 
   // 1 uses every pixel; 2 uses one point every two pixels, etc.
   int pixel_stride{1};
