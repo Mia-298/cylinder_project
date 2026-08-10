@@ -388,24 +388,43 @@ SphereFitResult SphereFitter::fit(
     return result;
   }
 
+  /*
+  * 即使最终因为 inlier ratio 不通过，
+  * 也保留 RANSAC 找到的候选球参数，
+  * 方便诊断。
+  */
+  const Eigen::Vector3f center(
+    coefficients.values.at(0),
+    coefficients.values.at(1),
+    coefficients.values.at(2));
+
+  const float radius =
+    coefficients.values.at(3);
+
+  result.center_m = center;
+  result.radius_m = radius;
+
+  if (!center.allFinite() ||
+      !std::isfinite(radius))
+  {
+    result.failure_reason =
+      "sphere coefficients contain non-finite values";
+    return result;
+  }
+
   if (result.inlier_count < parameters_.min_inliers) {
     result.failure_reason =
       "sphere inlier count is below the acceptance threshold";
     return result;
   }
 
-  if (result.inlier_ratio < parameters_.min_inlier_ratio) {
+  if (result.inlier_ratio <
+      parameters_.min_inlier_ratio)
+  {
     result.failure_reason =
       "sphere inlier ratio is below the acceptance threshold";
     return result;
   }
-
-  const Eigen::Vector3f center(
-    coefficients.values.at(0),
-    coefficients.values.at(1),
-    coefficients.values.at(2));
-
-  const float radius = coefficients.values.at(3);
 
   if (!center.allFinite() || !std::isfinite(radius)) {
     result.failure_reason =

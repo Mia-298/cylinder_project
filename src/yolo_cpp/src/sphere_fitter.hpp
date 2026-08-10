@@ -66,11 +66,6 @@ public:
   const SphereFitParameters & parameters() const noexcept;
 
   void setParameters(const SphereFitParameters & parameters);
-
-  // Requirements:
-  // 1. cloud must be organized (height > 1);
-  // 2. cloud pixels must correspond to the color image pixels;
-  // 3. image_box must use coordinates in image_size.
   SphereFitResult fit(
     const pcl::PointCloud<pcl::PointXYZ>::ConstPtr & cloud,
     const cv::Rect & image_box,

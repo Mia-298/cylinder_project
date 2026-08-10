@@ -38,21 +38,41 @@ struct DetectionSnapshot
     std::vector<Detection> detections;
     std::vector<LocatedDetection> located_detections;
 };
+struct DetectionResult
+{
+    // YOLO 是否检测到目标
+    bool yolo_success{false};
+
+    // 球面拟合是否成功
+    bool sphere_fit_success{false};
+
+    // YOLO bbox 归一化信息，范围为 [0, 1]
+    // 0.5为适中位置，例如x<0.5,则表示目标中心偏画面左侧
+    // y<0.5表示目标中心偏画面上侧
+    // width_ratio = 0.5，表示目标已经占据图像宽度的 50%，需要定义有效识别位置（>0.4m=？）来确定是否需要后退识别
+    float center_x_ratio{NAN};
+    float center_y_ratio{NAN};
+    float width_ratio{NAN};
+    float height_ratio{NAN};
+
+    // 球心坐标，单位 m
+    // 当 sphere_fit_success == false 时保持 NaN
+    float x{std::numeric_limits<float>::quiet_NaN()};
+    float y{std::numeric_limits<float>::quiet_NaN()};
+    float z{std::numeric_limits<float>::quiet_NaN()};
+};
 class YoloDetectNode : public rclcpp::Node
 {
 public:
     
-    YoloDetectNode();
-    DetectionSnapshot getLatestDetections() const;
+    YoloDetectNode(bool enable_vis);
     // 置信度最高的二维 YOLO 检测结果
-    std::optional<Detection> findBestDetection(
-        const std::string & object_name) const;
-    // 已经成功完成球面拟合的三维定位结果
-    std::optional<LocatedDetection> findBestLocatedDetection(
-    const std::string & object_name) const;
+    DetectionResult findBestDetectionResult(
+    const std::string & object_name= "class_0") const;
 
 
 private:
+    bool enable_vis = false;
 
     enum class CaptureState
     {
