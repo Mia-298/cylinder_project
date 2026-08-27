@@ -1,0 +1,17 @@
+handeye_calibration_node:
+  ros__parameters:
+    service_namespace: /handeye
+    image_topic: /camera/color/image_raw
+    camera_info_topic: /camera/color/camera_info
+    robot_pose_service: /robot/get_pose
+    save_root_dir: calibration_data/handeye
+    session_name: ""
+    publish_debug_image: true
+    robot_pose_timeout_ms: 2000
+    board_dictionary_id: 7
+    board_squares_x: 10
+    board_squares_y: 7
+    board_square_length_m: 0.025
+    board_marker_length_m: 0.018
+    handeye_method: TSAI
+    min_samples: 5

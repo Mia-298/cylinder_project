@@ -1,0 +1,16 @@
+aubo_robot_control_node:
+  ros__parameters:
+    robot_ip: "192.168.192.2"
+    robot_port: 30004
+    username: "aubo"
+    password: "aubo123"
+    request_timeout_ms: 8000
+    auto_connect: false
+    auto_enable: false
+    auto_handguide: false
+    service_namespace: "/robot"
+    velocity_rad_s: 0.3490658504
+    acceleration_rad_s2: 0.5235987756
+    blend_radius_m: 0.0
+    duration_s: 0.0
+    motion_timeout_sec: 120.0

@@ -23,3 +23,11 @@ Makefile
 
 # VSCode 配置（可选，按需保留）
 .vscode/
+output/
+**/output/
+*.jpg.bak
+build/
+install/
+log/
+output/
+**/output/

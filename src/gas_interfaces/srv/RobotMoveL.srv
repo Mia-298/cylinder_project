@@ -1,0 +1,6 @@
+float64[6] tcp_xyz_m_rpy_rad
+bool wait
+---
+bool success
+int32 error_code
+string message

@@ -1,0 +1,5 @@
+---
+bool success
+int32 error_code
+string message
+int32 sample_count

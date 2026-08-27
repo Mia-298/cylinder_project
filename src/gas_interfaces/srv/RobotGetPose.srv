@@ -1,0 +1,6 @@
+---
+bool success
+int32 error_code
+string message
+float64[6] joint_rad
+float64[6] tcp_xyz_m_rpy_rad

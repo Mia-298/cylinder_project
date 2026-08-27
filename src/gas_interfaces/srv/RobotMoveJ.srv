@@ -1,0 +1,6 @@
+float64[6] joint_rad
+bool wait
+---
+bool success
+int32 error_code
+string message

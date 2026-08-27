@@ -1,0 +1,12 @@
+---
+bool success
+int32 sample_count
+bool has_image
+bool has_camera_info
+bool has_robot_pose
+bool has_calibration
+float64 last_reprojection_error_px
+string last_error
+int32 last_sample_id
+string last_sample_file
+string result_file

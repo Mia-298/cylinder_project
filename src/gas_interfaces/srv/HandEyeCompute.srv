@@ -1,0 +1,10 @@
+string output_path
+---
+bool success
+int32 error_code
+string message
+int32 sample_count
+float64 rms_reprojection_error_px
+float64[16] tool_camera_matrix
+float64[16] camera_tool_matrix
+string result_file

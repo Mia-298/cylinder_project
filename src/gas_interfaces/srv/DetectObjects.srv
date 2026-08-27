@@ -1,0 +1,11 @@
+bool publish_debug_image
+---
+bool success
+string message
+vision_msgs/Detection2DArray detections
+bool has_sphere_center
+float64[3] sphere_center_m
+float64 sphere_radius_m
+string sphere_frame_id
+string sphere_class_id
+float64 sphere_confidence

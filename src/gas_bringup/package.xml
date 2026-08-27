@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>gas_bringup</name>
+  <version>0.0.0</version>
+  <description>Launch and runtime configuration for the gas project.</description>
+  <maintainer email="2532547744@qq.com">xiaojinzi</maintainer>
+  <license>TODO: License declaration</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>gas_handeye_calibration</exec_depend>
+  <exec_depend>gas_grasp_execution</exec_depend>
+  <exec_depend>gas_interfaces</exec_depend>
+  <exec_depend>gas_robot_control</exec_depend>
+  <exec_depend>orbbec_camera</exec_depend>
+  <exec_depend>yolo_cpp</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

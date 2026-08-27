@@ -1,0 +1,36 @@
+# Orbbec color-only stream configuration for hand-eye calibration.
+# Hand-eye sampling only needs /camera/color/image_raw and /camera/color/camera_info.
+camera_name: camera
+depth_registration: false
+align_mode: SW
+
+enable_color: true
+color_width: 640
+color_height: 480
+color_fps: 30
+color_format: MJPG
+color_qos: default
+color_camera_info_qos: default
+
+enable_depth: false
+depth_width: 0
+depth_height: 0
+depth_fps: 0
+depth_format: ANY
+depth_qos: default
+depth_camera_info_qos: default
+
+enable_left_ir: false
+enable_right_ir: false
+enable_accel: false
+enable_gyro: false
+enable_sync_output_accel_gyro: false
+
+enable_point_cloud: false
+enable_colored_point_cloud: false
+enable_d2c_viewer: false
+publish_tf: true
+tf_publish_rate: 0.0
+enable_frame_sync: false
+enable_depth_scale: false
+frame_aggregate_mode: color_frame

@@ -1,0 +1,12 @@
+bool wait
+bool publish_debug_image
+float64 approach_offset_m
+---
+bool success
+int32 error_code
+string message
+float64[6] target_tcp_xyz_m_rpy_rad
+float64[3] object_point_camera_m
+float64[3] object_point_base_m
+float64 depth_m
+string debug_summary

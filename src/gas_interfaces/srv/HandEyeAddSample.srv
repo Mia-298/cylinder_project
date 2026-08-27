@@ -1,0 +1,10 @@
+---
+bool success
+int32 error_code
+string message
+int32 sample_id
+int32 sample_count
+float64 reprojection_error_px
+string image_path
+string debug_image_path
+string sample_file

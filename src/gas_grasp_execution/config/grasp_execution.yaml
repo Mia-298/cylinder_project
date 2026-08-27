@@ -1,0 +1,11 @@
+gas_grasp_execution_node:
+  ros__parameters:
+    yolo_service_name: /yolo/detect_once
+    robot_pose_service: /robot/get_pose
+    robot_move_l_service: /robot/move_l
+    handeye_status_service: /handeye/status
+    handeye_result_file: ""
+    execute_service_name: /grasp/execute_once
+    default_approach_offset_m: 0.20
+    min_valid_depth_m: 0.05
+    max_valid_depth_m: 5.0

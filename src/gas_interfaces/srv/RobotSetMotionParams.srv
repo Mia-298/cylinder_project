@@ -1,0 +1,8 @@
+float64 velocity_rad_s
+float64 acceleration_rad_s2
+float64 blend_radius_m
+float64 duration_s
+---
+bool success
+int32 error_code
+string message
