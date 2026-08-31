@@ -20,6 +20,11 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 
+#include <gas_interfaces/srv/detect_objects.hpp>
+#include <vision_msgs/msg/detection2_d.hpp>
+#include <vision_msgs/msg/detection2_d_array.hpp>
+#include <vision_msgs/msg/object_hypothesis_with_pose.hpp>
+
 namespace
 {
 // -----------------------------------------------------------------------------
@@ -352,11 +357,15 @@ YoloDetectNode::YoloDetectNode(bool enable_vis)
 
   point_cloud_topic_ = declare_parameter<std::string>(
     "point_cloud_topic",
-    "/camera/depth_registered/points");
+    "/camera/depth/color/points");
 
   sphere_target_class_ = declare_parameter<std::string>(
     "sphere_target_class",
     "class_0");
+
+  service_name_ = declare_parameter<std::string>(
+    "service_name",
+    "/yolo/detect_once");
 
   capture_interval_sec_ =
     declare_parameter<double>(
@@ -393,6 +402,15 @@ YoloDetectNode::YoloDetectNode(bool enable_vis)
       &YoloDetectNode::imageCallback,
       this,
       std::placeholders::_1));
+
+  detect_service_ =
+    create_service<gas_interfaces::srv::DetectObjects>(
+    service_name_,
+    std::bind(
+      &YoloDetectNode::handleDetectObjects,
+      this,
+      std::placeholders::_1,
+      std::placeholders::_2));
   const auto capture_period =
     std::chrono::duration_cast<
     std::chrono::milliseconds>(
@@ -414,6 +432,14 @@ YoloDetectNode::YoloDetectNode(bool enable_vis)
 
   RCLCPP_INFO(get_logger(), "Model path: %s", model_path_.c_str());
   RCLCPP_INFO(get_logger(), "Image topic: %s", image_topic_.c_str());
+  RCLCPP_INFO(
+    get_logger(),
+    "Point cloud topic: %s",
+    point_cloud_topic_.c_str());
+  RCLCPP_INFO(
+    get_logger(),
+    "Service name: %s",
+    service_name_.c_str());
   RCLCPP_INFO(
     get_logger(),
     "Capture interval: %.3f s",
@@ -586,6 +612,85 @@ YoloDetectNode::findBestDetectionResult(
 
     return result;
 }
+
+void YoloDetectNode::handleDetectObjects(
+  const std::shared_ptr<gas_interfaces::srv::DetectObjects::Request> request,
+  std::shared_ptr<gas_interfaces::srv::DetectObjects::Response> response)
+{
+  if (request != nullptr && request->publish_debug_image) {
+    RCLCPP_DEBUG(
+      get_logger(),
+      "publish_debug_image requested; returning cached detection snapshot");
+  }
+
+  DetectionSnapshot snapshot;
+  {
+    std::lock_guard<std::mutex> lock(detection_mutex_);
+    snapshot = latest_snapshot_;
+  }
+
+  const std::string frame_id =
+    !snapshot.image_frame_id.empty() ?
+    snapshot.image_frame_id :
+    snapshot.cloud_frame_id;
+
+  response->success = true;
+  response->message = "latest detection snapshot returned";
+  if (snapshot.detections.empty()) {
+    response->message = "no detection snapshot available yet";
+  } else if (snapshot.located_detections.empty()) {
+    response->message = "detections available but no sphere fit was computed";
+  }
+  response->detections.header.stamp = snapshot.image_stamp.to_msg();
+  response->detections.header.frame_id = frame_id;
+  response->detections.detections.clear();
+  response->detections.detections.reserve(snapshot.detections.size());
+
+  for (const Detection & detection : snapshot.detections) {
+    vision_msgs::msg::Detection2D detection_msg;
+    detection_msg.header.stamp = snapshot.image_stamp.to_msg();
+    detection_msg.header.frame_id = frame_id;
+    detection_msg.id = detection.class_name;
+    detection_msg.bbox.center.x = static_cast<double>(detection.center.x);
+    detection_msg.bbox.center.y = static_cast<double>(detection.center.y);
+    detection_msg.bbox.center.theta = 0.0;
+    detection_msg.bbox.size_x = static_cast<double>(detection.box.width);
+    detection_msg.bbox.size_y = static_cast<double>(detection.box.height);
+
+    vision_msgs::msg::ObjectHypothesisWithPose hypothesis;
+    hypothesis.hypothesis.id = static_cast<int64_t>(detection.class_id);
+    hypothesis.hypothesis.score = static_cast<float>(detection.confidence);
+    detection_msg.results.push_back(std::move(hypothesis));
+
+    response->detections.detections.push_back(std::move(detection_msg));
+  }
+
+  response->has_sphere_center = false;
+  response->sphere_center_m.fill(std::numeric_limits<double>::quiet_NaN());
+  response->sphere_radius_m = std::numeric_limits<double>::quiet_NaN();
+  response->sphere_frame_id = frame_id;
+  response->sphere_class_id.clear();
+  response->sphere_confidence = std::numeric_limits<double>::quiet_NaN();
+
+  if (!snapshot.located_detections.empty()) {
+    const LocatedDetection & located = snapshot.located_detections.front();
+    response->sphere_frame_id = frame_id;
+    response->sphere_class_id = located.detection.class_name;
+    response->sphere_confidence = static_cast<double>(located.detection.confidence);
+
+    if (located.sphere.success) {
+      response->has_sphere_center = true;
+      response->sphere_center_m[0] = static_cast<double>(located.sphere.center_m.x());
+      response->sphere_center_m[1] = static_cast<double>(located.sphere.center_m.y());
+      response->sphere_center_m[2] = static_cast<double>(located.sphere.center_m.z());
+      response->sphere_radius_m = static_cast<double>(located.sphere.radius_m);
+      response->message = "latest detection snapshot returned with sphere fit";
+    } else {
+      response->message = "detections available but sphere fit is not valid";
+    }
+  }
+}
+
 void YoloDetectNode::captureTimerCallback()
 {
   std::lock_guard<std::mutex> lock(
@@ -1231,6 +1336,9 @@ void YoloDetectNode::processCapturedBundle(
       latest_snapshot_.image_stamp =
         rclcpp::Time(
         image_message->header.stamp);
+
+      latest_snapshot_.image_frame_id =
+        image_message->header.frame_id;
 
       latest_snapshot_.cloud_stamp =
         rclcpp::Time(

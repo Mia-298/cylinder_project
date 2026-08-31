@@ -1,0 +1,20 @@
+# RealSense color/depth stream configuration for perception and grasping.
+rgb_camera.color_profile: 640x480x30
+rgb_camera.color_format: RGB8
+rgb_camera.enable_auto_exposure: true
+
+enable_color: true
+enable_depth: true
+depth_module.depth_profile: 640x480x30
+depth_module.depth_format: Z16
+
+enable_sync: true
+align_depth.enable: true
+
+pointcloud.enable: true
+pointcloud.stream_filter: 2
+pointcloud.ordered_pc: true
+pointcloud.allow_no_texture_points: false
+
+publish_tf: true
+tf_publish_rate: 0.0

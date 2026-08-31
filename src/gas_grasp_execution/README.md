@@ -99,7 +99,7 @@ sphere_center_m=[x, y, z]
 
 1. `ros2 service list | grep /grasp`
 2. `ros2 service list | grep /yolo`
-3. `ros2 topic hz /camera/depth/points`
+3. `ros2 topic hz /camera/depth/color/points`
 4. 手动调用 `/yolo/detect_once`，确认 `has_sphere_center=true`
 5. 确认 `handeye_result_file` 指向正确标定结果
 6. 调用 `/robot/get_pose`

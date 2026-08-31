@@ -16,7 +16,7 @@
   <exec_depend>gas_grasp_execution</exec_depend>
   <exec_depend>gas_interfaces</exec_depend>
   <exec_depend>gas_robot_control</exec_depend>
-  <exec_depend>orbbec_camera</exec_depend>
+  <exec_depend>realsense2_camera</exec_depend>
   <exec_depend>yolo_cpp</exec_depend>
 
   <export>

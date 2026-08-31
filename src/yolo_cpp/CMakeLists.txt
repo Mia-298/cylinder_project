@@ -13,9 +13,11 @@ find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(gas_interfaces REQUIRED)
 find_package(PCL REQUIRED COMPONENTS common io sample_consensus segmentation)
 find_package(pcl_conversions REQUIRED)
 find_package(message_filters REQUIRED)
+find_package(vision_msgs REQUIRED)
 
 set(
   ONNXRUNTIME_ROOT
@@ -80,6 +82,8 @@ ament_target_dependencies(
   yolo_detect_node
   rclcpp
   ament_index_cpp
+  gas_interfaces
+  vision_msgs
   sensor_msgs
   geometry_msgs
   cv_bridge

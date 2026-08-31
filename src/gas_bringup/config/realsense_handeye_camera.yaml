@@ -1,0 +1,16 @@
+# RealSense color-only stream configuration for hand-eye calibration.
+# Hand-eye sampling only needs /camera/color/image_raw and /camera/color/camera_info.
+rgb_camera.color_profile: 640x480x30
+rgb_camera.color_format: RGB8
+rgb_camera.enable_auto_exposure: true
+
+enable_color: true
+enable_depth: false
+
+enable_sync: false
+align_depth.enable: false
+
+pointcloud.enable: false
+
+publish_tf: true
+tf_publish_rate: 0.0

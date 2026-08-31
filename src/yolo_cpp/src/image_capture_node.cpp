@@ -71,12 +71,8 @@ public:
         interval_sec_));
 
     /*
-     * Orbbec 驱动当前三个发布端均为：
-     * RELIABLE + KEEP_LAST(10) + VOLATILE。
-     *
-     * 这里使用完全相同的 QoS，避免不同 DDS 实现下
-     * RELIABLE 发布端与 BEST_EFFORT 订阅端虽然已发现，
-     * 但数据未按预期送达的问题。
+     * 保持与相机驱动一致的 QoS，避免不同 DDS 实现下
+     * 发布端与订阅端 QoS 不匹配导致数据未按预期送达。
      */
     const rclcpp::QoS camera_qos =
       rclcpp::QoS(
@@ -197,11 +193,11 @@ private:
 
     declare_parameter<std::string>(
       "depth_topic",
-      "/camera/depth/image_raw");
+      "/camera/depth/image_rect_raw");
 
     declare_parameter<std::string>(
       "pointcloud_topic",
-      "/camera/depth_registered/points");
+      "/camera/depth/color/points");
 
     /*
      * 保持彩色图保存目录兼容性。

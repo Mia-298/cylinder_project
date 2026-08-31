@@ -15,6 +15,7 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <rclcpp/rclcpp.hpp>
+#include <gas_interfaces/srv/detect_objects.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 
@@ -32,6 +33,7 @@ struct DetectionSnapshot
 {
     rclcpp::Time image_stamp;
     rclcpp::Time cloud_stamp;
+    std::string image_frame_id;
     std::string cloud_frame_id;
     cv::Size image_size;
 
@@ -90,16 +92,21 @@ private:
     std::string image_topic_;
     std::string point_cloud_topic_;
     std::string sphere_target_class_;
+    std::string service_name_;
 
     rclcpp::TimerBase::SharedPtr capture_timer_;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr point_cloud_subscription_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_subscription_;
+    rclcpp::Service<gas_interfaces::srv::DetectObjects>::SharedPtr detect_service_;
 
     void captureTimerCallback();
     void pointCloudCallback(const sensor_msgs::msg::PointCloud2::
     ConstSharedPtr message);
     void imageCallback(const sensor_msgs::msg::Image::
     ConstSharedPtr message);
+    void handleDetectObjects(
+      const std::shared_ptr<gas_interfaces::srv::DetectObjects::Request> request,
+      std::shared_ptr<gas_interfaces::srv::DetectObjects::Response> response);
 
     
     mutable std::mutex capture_mutex_;
@@ -120,4 +127,3 @@ private:
 
     
 };
-

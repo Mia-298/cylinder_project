@@ -1,72 +1,95 @@
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
-
-from ament_index_python.packages import get_package_share_directory
-
-import os
+from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
-
-    # Orbbec 相机 launch 文件
-    orbbec_launch = os.path.join(
-        get_package_share_directory("orbbec_camera"),
-        "launch",
-        "gemini_330_series.launch.py"
-    )
-
-    camera = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(orbbec_launch)
-        # launch_arguments={
-        #     "depth_registration": "true",
-
-        #     "enable_point_cloud": "true",
-        #     "enable_colored_point_cloud": "true",
-        #     "ordered_pc": "true",
-
-        #     "align_mode": "SW",
-        #     "align_target_stream": "COLOR",
-
-        #     "device_preset": "High Density",
-
-        #     "enable_spatial_filter": "true",
-        #     "spatial_filter_alpha": "0.5",
-        #     "spatial_filter_diff_threshold": "160",
-        #     "spatial_filter_magnitude": "2",
-        #     "spatial_filter_radius": "2",
-
-        #     "enable_temporal_filter": "false",
-        #     "enable_hole_filling_filter": "false",
-        # }.items()
-    )
-
-    # YOLO + 点云球拟合视觉节点
-    vision = Node(
-        package="yolo_cpp",
-        executable="yolo_detect_node",
-        name="yolo_detect_node",
-        output="screen",
-        parameters=[
-            {
-                "image_topic":
-                    "/camera/color/image_raw",
-
-                "point_cloud_topic":
-                    "/camera/depth_registered/points",
-
-                "sphere_target_class":
-                    "class_0",
-
-                "capture_interval_sec":
-                    0.5,
-            }
-        ]
-    )
+    camera_launch = PathJoinSubstitution([
+        FindPackageShare('gas_bringup'),
+        'launch',
+        'camera.launch.py',
+    ])
+    default_camera_config = PathJoinSubstitution([
+        FindPackageShare('gas_bringup'),
+        'config',
+        'realsense_camera.yaml',
+    ])
+    default_yolo_model_path = PathJoinSubstitution([
+        FindPackageShare('yolo_cpp'),
+        'models',
+        'best.onnx',
+    ])
 
     return LaunchDescription([
-        camera,
-        vision,
+        DeclareLaunchArgument(
+            'use_camera',
+            default_value='true',
+            description='Start the RealSense camera driver.',
+        ),
+        DeclareLaunchArgument(
+            'use_yolo',
+            default_value='true',
+            description='Start the YOLO ONNX detector.',
+        ),
+        DeclareLaunchArgument(
+            'camera_config',
+            default_value=default_camera_config,
+            description='YAML file passed to the RealSense camera driver.',
+        ),
+        DeclareLaunchArgument(
+            'model_path',
+            default_value=default_yolo_model_path,
+            description='Path to the YOLO ONNX model.',
+        ),
+        DeclareLaunchArgument(
+            'image_topic',
+            default_value='/camera/color/image_raw',
+            description='Input color image topic for YOLO.',
+        ),
+        DeclareLaunchArgument(
+            'point_cloud_topic',
+            default_value='/camera/depth/color/points',
+            description='Input point cloud topic for yolo_cpp sphere fitting.',
+        ),
+        DeclareLaunchArgument(
+            'sphere_target_class',
+            default_value='class_0',
+            description='Class name used by yolo_cpp for sphere fitting.',
+        ),
+        DeclareLaunchArgument(
+            'capture_interval_sec',
+            default_value='0.5',
+            description='Seconds between yolo_cpp capture cycles.',
+        ),
+        DeclareLaunchArgument(
+            'service_name',
+            default_value='/yolo/detect_once',
+            description='Service used to trigger one-shot YOLO detection.',
+        ),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(camera_launch),
+            launch_arguments={
+                'camera_config': LaunchConfiguration('camera_config'),
+            }.items(),
+            condition=IfCondition(LaunchConfiguration('use_camera')),
+        ),
+        Node(
+            package='yolo_cpp',
+            executable='yolo_detect_node',
+            name='yolo_detect_node',
+            output='screen',
+            parameters=[{
+                'model_path': LaunchConfiguration('model_path'),
+                'image_topic': LaunchConfiguration('image_topic'),
+                'point_cloud_topic': LaunchConfiguration('point_cloud_topic'),
+                'sphere_target_class': LaunchConfiguration('sphere_target_class'),
+                'capture_interval_sec': LaunchConfiguration('capture_interval_sec'),
+                'service_name': LaunchConfiguration('service_name'),
+            }],
+            condition=IfCondition(LaunchConfiguration('use_yolo')),
+        ),
     ])

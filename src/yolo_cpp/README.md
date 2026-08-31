@@ -18,7 +18,7 @@
 | 参数 | 主链路值 |
 | --- | --- |
 | `image_topic` | `/camera/color/image_raw` |
-| `point_cloud_topic` | `/camera/depth/points` |
+| `point_cloud_topic` | `/camera/depth/color/points` |
 | `model_path` | `yolo_cpp/models/best.onnx` |
 | `sphere_target_class` | `class_0` |
 | `capture_interval_sec` | `0.5` |
@@ -69,7 +69,7 @@ ros2 service call /yolo/detect_once gas_interfaces/srv/DetectObjects \
 球拟合依赖 organized point cloud。当前主链路应检查：
 
 ```bash
-ros2 topic hz /camera/depth/points
+ros2 topic hz /camera/depth/color/points
 ```
 
 如果日志出现：
@@ -82,7 +82,7 @@ point cloud is not organized
 
 1. 是否从 `gas_bringup/perception.launch.py` 或 `gas_bringup/grasp_pipeline.launch.py` 启动。
 2. 相机是否启用了 `ordered_pc=true`。
-3. 点云话题是否是 `/camera/depth/points`。
+3. 点云话题是否是 `/camera/depth/color/points`。
 4. 目标 ROI 内是否有足够有效深度点。
 
 ## 与抓取节点的关系

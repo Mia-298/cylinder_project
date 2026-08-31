@@ -29,7 +29,7 @@ def generate_launch_description():
     default_camera_config = PathJoinSubstitution([
         FindPackageShare("gas_bringup"),
         "config",
-        "orbbec_handeye_camera.yaml",
+        "realsense_handeye_camera.yaml",
     ])
     default_robot_config = PathJoinSubstitution([
         FindPackageShare("gas_robot_control"),
@@ -48,7 +48,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "use_camera",
             default_value="true",
-            description="Start the Orbbec camera driver.",
+            description="Start the RealSense camera driver.",
         ),
         DeclareLaunchArgument(
             "use_robot",
@@ -63,7 +63,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "camera_config",
             default_value=default_camera_config,
-            description="YAML file passed to the Orbbec camera driver.",
+            description="YAML file passed to the RealSense camera driver.",
         ),
         DeclareLaunchArgument(
             "robot_config",
@@ -99,21 +99,6 @@ def generate_launch_description():
             PythonLaunchDescriptionSource(camera_launch),
             launch_arguments={
                 "camera_config": LaunchConfiguration("camera_config"),
-                "depth_registration": "false",
-                "enable_point_cloud": "false",
-                "enable_colored_point_cloud": "false",
-                "enable_d2c_viewer": "false",
-                "enable_depth": "false",
-                "enable_left_ir": "false",
-                "enable_right_ir": "false",
-                "enable_frame_sync": "false",
-                "enable_depth_scale": "false",
-                "enable_sync_output_accel_gyro": "false",
-                "enable_accel": "false",
-                "enable_gyro": "false",
-                "enable_laser": "false",
-                "align_mode": "SW",
-                "frame_aggregate_mode": "color_frame",
             }.items(),
             condition=IfCondition(LaunchConfiguration("use_camera")),
         ),

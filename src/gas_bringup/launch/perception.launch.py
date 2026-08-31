@@ -16,7 +16,7 @@ def generate_launch_description():
     default_camera_config = PathJoinSubstitution([
         FindPackageShare('gas_bringup'),
         'config',
-        'orbbec_camera.yaml',
+        'realsense_camera.yaml',
     ])
     default_yolo_model_path = PathJoinSubstitution([
         FindPackageShare('yolo_cpp'),
@@ -28,7 +28,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'use_camera',
             default_value='true',
-            description='Start the Orbbec camera driver.',
+            description='Start the RealSense camera driver.',
         ),
         DeclareLaunchArgument(
             'use_yolo',
@@ -38,7 +38,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'camera_config',
             default_value=default_camera_config,
-            description='YAML file passed to the Orbbec camera driver.',
+            description='YAML file passed to the RealSense camera driver.',
         ),
         DeclareLaunchArgument(
             'model_path',
@@ -52,7 +52,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'point_cloud_topic',
-            default_value='/camera/depth/points',
+            default_value='/camera/depth/color/points',
             description='Input point cloud topic for yolo_cpp sphere fitting.',
         ),
         DeclareLaunchArgument(
@@ -74,16 +74,6 @@ def generate_launch_description():
             PythonLaunchDescriptionSource(camera_launch),
             launch_arguments={
                 'camera_config': LaunchConfiguration('camera_config'),
-                'depth_registration': 'true',
-                'enable_point_cloud': 'true',
-                'enable_colored_point_cloud': 'false',
-                'enable_d2c_viewer': 'false',
-                'enable_depth': 'true',
-                'enable_frame_sync': 'true',
-                'enable_depth_scale': 'true',
-                'align_mode': 'SW',
-                'frame_aggregate_mode': 'ANY',
-                'ordered_pc': 'true',
             }.items(),
             condition=IfCondition(LaunchConfiguration('use_camera')),
         ),

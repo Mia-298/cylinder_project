@@ -12,7 +12,7 @@ ros2 launch gas_bringup handeye_collection.launch.py
 
 该入口会启动：
 
-- Orbbec 彩色相机和 `/camera/color/camera_info`
+- RealSense 彩色相机和 `/camera/color/camera_info`
 - AUBO 控制节点
 - `handeye_calibration_node`
 - `handeye_capture_ui.py`
