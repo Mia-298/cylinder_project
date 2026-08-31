@@ -10,6 +10,12 @@
 ros2 launch gas_bringup handeye_collection.launch.py
 ```
 
+如果只想单独启动标定后端：
+
+```bash
+ros2 launch gas_handeye_calibration handeye_calibration.launch.py
+```
+
 该入口会启动：
 
 - RealSense 彩色相机和 `/camera/color/camera_info`

@@ -24,6 +24,12 @@
 
 ## 常用命令
 
+只启动相机：
+
+```bash
+ros2 launch gas_bringup camera.launch.py
+```
+
 只检查相机和点云：
 
 ```bash
@@ -34,6 +40,12 @@ ros2 launch gas_bringup perception.launch.py use_yolo:=false
 
 ```bash
 ros2 launch gas_bringup perception.launch.py
+```
+
+启动视觉调试：
+
+```bash
+ros2 launch gas_bringup yolo_debug.launch.py
 ```
 
 启动手眼采集：

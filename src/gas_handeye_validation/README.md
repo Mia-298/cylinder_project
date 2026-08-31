@@ -20,6 +20,14 @@ T_base_board_i = T_base_tool_i * T_tool_camera * T_camera_board_i
 ros2 launch gas_bringup handeye_validation.launch.py
 ```
 
+如果相机和机器人已经在外部启动，也可以只起本包验证界面：
+
+```bash
+ros2 launch gas_handeye_validation handeye_validation.launch.py \
+  use_camera:=false \
+  use_robot:=false
+```
+
 默认读取最新：
 
 ```text

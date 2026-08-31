@@ -7,7 +7,7 @@
 ```text
 src/third_party/
 ├── realsense-ros-ros2/   # 当前使用的 RealSense ROS2 相机包
-├── OrbbecSDK_ROS2/       # 旧相机包，保留作历史参考
+├── 历史相机目录/        # 已 COLCON_IGNORE，保留作历史参考
 ├── aubo_sdk/             # AUBO 机器人 SDK 头文件和库
 └── onnxruntime/          # YOLO ONNX 推理依赖
 ```
@@ -22,6 +22,6 @@ src/third_party/
 
 ## 注意
 
-- `src/OrbbecSDK_ROS2-2-main` 和 `src/third_party/OrbbecSDK_ROS2` 都是旧相机包，不是当前主链路。
+- 历史相机目录已通过 `COLCON_IGNORE` 排除，不是当前主链路。
 - 不要把 vendor README 改成本项目说明；项目说明写在本文件和根目录 README 中。
 - 若升级第三方库，需要同步检查对应包的 `CMakeLists.txt`、库路径和运行时环境。

@@ -7,9 +7,9 @@
 ## 工作空间结构
 
 ```text
-cylinder_project_mix/
+cylinder_project/
 ├── README.md                         # 当前入口说明
-├── README_cylinder_project.md        # 当前工程完整 README
+├── README_cylinder_project.md        # 图像采集与调试补充说明
 ├── calibration_data/
 │   ├── handeye/<session>/results/handeye_result.yaml
 │   └── handeye_validation/<session>/results/validation_result.yaml
@@ -21,8 +21,7 @@ cylinder_project_mix/
 │   ├── gas_robot_control/            # AUBO 机器人 service 封装
 │   ├── gas_grasp_execution/          # 一次抓取执行服务
 │   ├── yolo_cpp/                     # YOLO 推理、2D 检测和点云球拟合
-│   ├── third_party/                  # 当前使用的 RealSense / AUBO / ONNX Runtime
-│   └── OrbbecSDK_ROS2-2-main/        # 旧相机包，已 COLCON_IGNORE
+│   └── third_party/                  # 当前使用的 RealSense / AUBO / ONNX Runtime，历史相机已忽略
 ├── third_party/onnxruntime/          # 旧层级遗留依赖
 ├── build/
 ├── install/
@@ -58,18 +57,37 @@ cylinder_project_mix/
 每个终端先执行：
 
 ```bash
-cd ~/SyhDev/cylinder_project_mix
+cd ~/SyhDev/cylinder_project
 source install/setup.bash
 ```
 
 首次部署或接口变化后才需要重新构建：
 
 ```bash
-cd ~/SyhDev/cylinder_project_mix
+cd ~/SyhDev/cylinder_project
 source /opt/ros/humble/setup.bash
 colcon build --symlink-install
 source install/setup.bash
 ```
+
+## 模块运行清单
+
+| 模块 | 命令 | 说明 |
+| --- | --- | --- |
+| 相机 | `ros2 launch gas_bringup camera.launch.py` | 只启动 RealSense 相机驱动 |
+| 感知 | `ros2 launch gas_bringup perception.launch.py` | 相机 + YOLO + 点云球拟合 |
+| 仅相机检查 | `ros2 launch gas_bringup perception.launch.py use_yolo:=false` | 只看彩色图和点云 |
+| YOLO 调试 | `ros2 launch gas_bringup yolo_debug.launch.py` | 相机 + 检测节点 |
+| 手眼采集 | `ros2 launch gas_bringup handeye_collection.launch.py` | 彩色图 + AUBO + 标定后端 |
+| 手眼验证 | `ros2 launch gas_bringup handeye_validation.launch.py` | 验证已有标定结果 |
+| 抓取链路 | `ros2 launch gas_bringup grasp_pipeline.launch.py handeye_result_file:=...` | 相机 + YOLO + AUBO + 抓取执行 |
+| 机器人控制 | `ros2 launch gas_robot_control aubo_control.launch.py` | 单独启动 AUBO 服务 |
+| 标定后端 | `ros2 launch gas_handeye_calibration handeye_calibration.launch.py` | 单独启动手眼后端 |
+| 抓取执行 | `ros2 launch gas_grasp_execution grasp_execution.launch.py handeye_result_file:=...` | 单独启动抓取服务 |
+| 采图工具 | `ros2 run yolo_cpp image_capture_node` | 保存 RGB / depth / point cloud |
+| YOLO 节点 | `ros2 run yolo_cpp yolo_detect_node` | 相机已起时直接跑检测 |
+
+这些入口都围绕 RealSense 的 `/camera/color/image_raw`、`/camera/color/camera_info` 和 `/camera/depth/color/points`。
 
 ## 推荐启动流程
 

@@ -57,6 +57,18 @@ ros2 launch gas_bringup perception.launch.py
 ros2 launch gas_bringup perception.launch.py use_yolo:=false
 ```
 
+只启动相机和检测节点的调试入口：
+
+```bash
+ros2 launch gas_bringup yolo_debug.launch.py
+```
+
+相机已经启动时，也可以直接跑检测节点：
+
+```bash
+ros2 run yolo_cpp yolo_detect_node
+```
+
 手动触发检测：
 
 ```bash
@@ -106,4 +118,10 @@ d: 保存下一组彩色图、深度图和点云
 q: 退出
 ```
 
-该工具保留兼容旧采图流程，不是当前抓取主链路必需节点。
+直接启动：
+
+```bash
+ros2 run yolo_cpp image_capture_node
+```
+
+该工具保留为采图和数据检查使用，不是当前抓取主链路必需节点。

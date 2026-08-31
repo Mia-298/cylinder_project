@@ -1,554 +1,160 @@
-# Cylinder Project：奥比中光图像采集
+# Cylinder Project：RealSense 图像采集与调试
 
-本项目基于 ROS 2 Humble，使用奥比中光 Gemini 330 系列相机发布彩色图像，并通过 `yolo_cpp` 功能包保存图像。
+本文件是当前工程的采图、视觉调试和模块运行补充说明。总入口说明见 `README.md`。
 
-相机发布的彩色图像话题为：
+当前相机主链路已经切到 RealSense：
 
-```text
-/camera/color/image_raw
-```
+- 相机驱动：`src/third_party/realsense-ros-ros2`
+- 统一相机入口：`ros2 launch gas_bringup camera.launch.py`
+- 历史相机目录已通过 `COLCON_IGNORE` 排除
 
-图像采集节点支持两种工作模式：
+默认话题：
 
-1. 默认模式：在节点运行终端中按 `p`，保存下一张接收到的图像；
-2. 自动模式：按照指定时间间隔连续保存图像。
+| 数据 | Topic | 类型 |
+| --- | --- | --- |
+| 彩色图 | `/camera/color/image_raw` | `sensor_msgs/msg/Image` |
+| 相机内参 | `/camera/color/camera_info` | `sensor_msgs/msg/CameraInfo` |
+| 深度图 | `/camera/depth/image_rect_raw` | `sensor_msgs/msg/Image` |
+| 对齐点云 | `/camera/depth/color/points` | `sensor_msgs/msg/PointCloud2` |
 
-图像默认保存到：
+抓取和球拟合只使用 `/camera/depth/color/points`，不再使用旧的 `/camera/depth_registered/points`。
 
-```text
-/home/用户名/cylinder_dataset
-```
+## 1. 工作空间
 
-在命令行中可表示为：
-
-```bash
-$HOME/cylinder_dataset
-```
-
----
-
-## 1. 工作空间路径
-
-本说明假设 ROS 2 工作空间位于：
-
-```text
-~/data/Project_Backup/orbbec_software/cylinder_project
-```
-
-进入工作空间：
+本说明默认工作空间位于：
 
 ```bash
-cd ~/data/Project_Backup/orbbec_software/cylinder_project
+cd ~/SyhDev/cylinder_project
 ```
 
-工作空间结构示例：
-
-```text
-cylinder_project/
-├── src/
-│   ├── orbbec_camera/
-│   ├── orbbec_camera_msgs/
-│   ├── orbbec_description/
-│   └── yolo_cpp/
-├── install_dependencies.sh
-├── requirements.txt
-├── build/
-├── install/
-└── log/
-```
-
-其中：
-
-- `orbbec_camera`：奥比中光 ROS 2 相机驱动；
-- `yolo_cpp`：彩色图像订阅与保存节点；
-- `install_dependencies.sh`：依赖安装脚本；
-- `build`、`install`、`log`：由 `colcon build` 生成。
-
----
-
-## 2. 首次安装依赖
-
-首次使用前，在工作空间根目录运行依赖安装脚本。
+每个新终端先加载环境：
 
 ```bash
-cd ~/data/Project_Backup/orbbec_software/cylinder_project
-```
-
-赋予脚本执行权限：
-
-```bash
-chmod +x install_dependencies.sh
-```
-
-加载 ROS 2 Humble 环境：
-
-```bash
-source /opt/ros/humble/setup.bash
-```
-
-运行依赖安装脚本：
-
-```bash
-./install_dependencies.sh
-```
-
-该脚本用于安装或检查以下依赖：
-
-- ROS 2 Humble 构建工具；
-- `rclcpp`；
-- `sensor_msgs`；
-- `cv_bridge`；
-- OpenCV；
-- `rosdep`；
-- `colcon`；
-- 工作空间内各功能包在 `package.xml` 中声明的依赖。
-
-依赖安装通常只需在首次配置环境或依赖发生变化时执行。
-
----
-
-## 3. 编译工作空间
-
-完成依赖安装后，在工作空间根目录执行：
-
-```bash
-cd ~/data/Project_Backup/orbbec_software/cylinder_project
-source /opt/ros/humble/setup.bash
-colcon build
-```
-
-仅编译图像采集功能包时，可执行：
-
-```bash
-colcon build --packages-select yolo_cpp
-```
-
-编译完成后加载工作空间环境：
-
-```bash
-source install/setup.bash
-```
-
-每次重新编译后，应在需要运行节点的终端中重新执行：
-
-```bash
-source install/setup.bash
-```
-
----
-
-## 4. 启动流程
-
-相机驱动和图像采集节点需要在两个终端中分别运行。
-
-两个终端均需进入工作空间并加载环境：
-
-```bash
-cd ~/data/Project_Backup/orbbec_software/cylinder_project
 source /opt/ros/humble/setup.bash
 source install/setup.bash
 ```
 
----
-
-## 5. 终端 1：启动奥比中光相机
-
-在第一个终端中执行：
+首次部署或接口变化后重新构建：
 
 ```bash
-cd ~/data/Project_Backup/orbbec_software/cylinder_project
+cd ~/SyhDev/cylinder_project
 source /opt/ros/humble/setup.bash
+colcon build --symlink-install
 source install/setup.bash
-
-ros2 launch orbbec_camera gemini_330_series.launch.py
 ```
 
-相机正常启动后，应发布彩色图像话题：
+## 2. 模块运行指令
 
-```text
-/camera/color/image_raw
-```
+| 目标 | 命令 | 说明 |
+| --- | --- | --- |
+| 只启动相机 | `ros2 launch gas_bringup camera.launch.py` | RealSense 驱动 |
+| 检查相机和点云 | `ros2 launch gas_bringup perception.launch.py use_yolo:=false` | 不启动 YOLO |
+| 启动视觉检测 | `ros2 launch gas_bringup perception.launch.py` | 相机 + YOLO |
+| 视觉调试 | `ros2 launch gas_bringup yolo_debug.launch.py` | 调试检测显示 |
+| 手眼采集 | `ros2 launch gas_bringup handeye_collection.launch.py` | 彩色图 + 机器人 + 标定 GUI |
+| 手眼验证 | `ros2 launch gas_bringup handeye_validation.launch.py` | 验证已有手眼结果 |
+| 完整抓取 | `ros2 launch gas_bringup grasp_pipeline.launch.py handeye_result_file:=calibration_data/handeye/<session>/results/handeye_result.yaml` | 相机 + YOLO + AUBO + 抓取 |
+| 机器人服务 | `ros2 launch gas_robot_control aubo_control.launch.py` | 单独启动 AUBO 控制节点 |
+| 采图工具 | `ros2 run yolo_cpp image_capture_node` | 保存 RGB / depth / point cloud |
+| YOLO 节点 | `ros2 run yolo_cpp yolo_detect_node` | 相机已启动时可直接运行 |
 
-检查话题是否存在：
+## 3. 相机检查
+
+只检查 RealSense 输出：
 
 ```bash
-ros2 topic list | grep image_raw
+ros2 launch gas_bringup perception.launch.py use_yolo:=false
 ```
 
-检查彩色图像话题类型：
-
-```bash
-ros2 topic type /camera/color/image_raw
-```
-
-预期输出：
-
-```text
-sensor_msgs/msg/Image
-```
-
-检查图像发布帧率：
+另开终端检查话题：
 
 ```bash
 ros2 topic hz /camera/color/image_raw
+ros2 topic hz /camera/depth/color/points
+ros2 topic info /camera/depth/color/points
 ```
 
----
+`/camera/depth/color/points` 的发布者应来自 `realsense2_camera_node`。
 
-## 6. 终端 2：默认按键拍照
+## 4. 图像和点云采集
 
-在第二个终端中执行：
+先启动相机：
 
 ```bash
-cd ~/data/Project_Backup/orbbec_software/cylinder_project
-source /opt/ros/humble/setup.bash
-source install/setup.bash
+ros2 launch gas_bringup perception.launch.py use_yolo:=false
+```
 
+另开终端启动采图工具：
+
+```bash
 ros2 run yolo_cpp image_capture_node
 ```
 
-默认模式下，节点不会自动连续保存图像。
-
-按键功能：
+默认按键：
 
 ```text
-p：保存按键触发后接收到的下一张图像
-q：退出图像采集节点
-Ctrl+C：退出图像采集节点
+p: 保存下一张彩色图
+d: 保存按键后第一组彩色图、深度图和点云
+q: 退出
 ```
-
-按下 `p` 后，节点会等待下一张 `/camera/color/image_raw` 消息到达，然后保存该帧。
 
 默认保存目录：
 
+| 数据 | 目录 |
+| --- | --- |
+| 彩色图 | `~/cylinder_dataset/images` |
+| 深度图 | `~/cylinder_dataset/depth` |
+| 点云 | `~/cylinder_dataset/pointclouds` |
+
+检查保存结果：
+
 ```bash
-$HOME/cylinder_dataset
+ls -lh ~/cylinder_dataset/images
+ls -lh ~/cylinder_dataset/depth
+ls -lh ~/cylinder_dataset/pointclouds
 ```
 
-例如，当前用户名为 `mia` 时，实际保存路径为：
+## 5. YOLO 检测调试
+
+推荐用 bringup 入口：
+
+```bash
+ros2 launch gas_bringup yolo_debug.launch.py
+```
+
+手动触发一次检测：
+
+```bash
+ros2 service call /yolo/detect_once gas_interfaces/srv/DetectObjects \
+  "{publish_debug_image: true}"
+```
+
+抓取需要返回：
 
 ```text
-/home/mia/cylinder_dataset
+has_sphere_center=true
+sphere_center_m=[x, y, z]
 ```
 
-查看已保存图像：
+如果出现 `point cloud is not organized`，优先检查 `src/gas_bringup/config/realsense_camera.yaml` 中是否保持：
 
-```bash
-ls -lh ~/cylinder_dataset
+```yaml
+pointcloud.enable: true
+pointcloud.ordered_pc: true
+align_depth.enable: true
 ```
 
----
+## 6. 模型更新
 
-## 7. 自动连续拍摄
-
-自动连续拍摄需要在启动节点时显式设置：
-
-```bash
-ros2 run yolo_cpp image_capture_node --ros-args \
-  -p auto_save:=true \
-  -p interval_sec:=0.5
-```
-
-上述命令表示：
+如需更新模型，将新的 `best.pt` 转成 ONNX 后替换：
 
 ```text
-每隔约 0.5 秒保存一张新图像
+src/yolo_cpp/models/best.onnx
 ```
 
-对应保存速率约为：
-
-```text
-2 张/秒
-```
-
-### 每隔 1 秒保存一张
+如果不是 `--symlink-install` 构建，替换模型后重新执行：
 
 ```bash
-ros2 run yolo_cpp image_capture_node --ros-args \
-  -p auto_save:=true \
-  -p interval_sec:=1.0
-```
-
-### 每隔 0.2 秒保存一张
-
-```bash
-ros2 run yolo_cpp image_capture_node --ros-args \
-  -p auto_save:=true \
-  -p interval_sec:=0.2
-```
-
-自动拍摄期间仍可按 `p`，额外请求保存下一张图像。
-
----
-
-## 8. 自定义保存目录
-
-默认保存目录为：
-
-```bash
-$HOME/cylinder_dataset
-```
-
-指定其他保存目录：
-
-```bash
-ros2 run yolo_cpp image_capture_node --ros-args \
-  -p save_directory:=/home/mia/data/cylinder_images
-```
-
-自动连续拍摄并指定保存目录：
-
-```bash
-ros2 run yolo_cpp image_capture_node --ros-args \
-  -p auto_save:=true \
-  -p interval_sec:=0.5 \
-  -p save_directory:=/home/mia/data/cylinder_images
-```
-
-如果目标目录不存在，节点会自动创建该目录。
-
----
-
-## 9. 常用参数
-
-| 参数 | 默认值 | 说明 |
-|---|---:|---|
-| `image_topic` | `/camera/color/image_raw` | 订阅的彩色图像话题 |
-| `save_directory` | `~/cylinder_dataset` | 图像保存目录 |
-| `auto_save` | `false` | 是否启用自动连续拍摄 |
-| `interval_sec` | `0.5` | 自动拍摄间隔，单位为秒 |
-| `image_format` | `jpg` | 保存格式，可设置为 `jpg` 或 `png` |
-| `filename_prefix` | `color` | 图像文件名前缀 |
-| `jpeg_quality` | `95` | JPEG 保存质量 |
-| `png_compression` | `3` | PNG 压缩等级 |
-
----
-
-## 10. 图像文件命名
-
-保存后的图像文件示例：
-
-```text
-color_000001_ros_1753952401_123456789.jpg
-color_000002_ros_1753952401_623456789.jpg
-color_000003_ros_1753952402_123456789.jpg
-```
-
-文件名中包含：
-
-```text
-文件前缀
-图像序号
-ROS 时间戳秒
-ROS 时间戳纳秒
-图像格式
-```
-
-统计已保存图像数量：
-
-```bash
-find ~/cylinder_dataset \
-  -maxdepth 1 \
-  -type f \
-  | wc -l
-```
-
-查看最近保存的文件：
-
-```bash
-ls -lht ~/cylinder_dataset | head
-```
-
-清空采集目录前可先确认文件：
-
-```bash
-ls ~/cylinder_dataset
-```
-
-确认后删除所有已采集图像：
-
-```bash
-rm -f ~/cylinder_dataset/*
-```
-
----
-
-## 11. 完整操作流程
-
-### 首次配置
-
-```bash
-cd ~/data/Project_Backup/orbbec_software/cylinder_project
-
-source /opt/ros/humble/setup.bash
-
-chmod +x install_dependencies.sh
-./install_dependencies.sh
-
-colcon build
-source install/setup.bash
-```
-
-### 终端 1：启动相机
-
-```bash
-cd ~/data/Project_Backup/orbbec_software/cylinder_project
-source /opt/ros/humble/setup.bash
-source install/setup.bash
-
-ros2 launch orbbec_camera gemini_330_series.launch.py
-```
-
-### 终端 2：按 `p` 拍照
-
-```bash
-cd ~/data/Project_Backup/orbbec_software/cylinder_project
-source /opt/ros/humble/setup.bash
-source install/setup.bash
-
-ros2 run yolo_cpp image_capture_node
-```
-
-节点启动后，在当前终端中按：
-
-```text
-p
-```
-
-即可保存下一张接收到的图像。
-
-### 终端 2：自动连续拍照
-
-```bash
-cd ~/data/Project_Backup/orbbec_software/cylinder_project
-source /opt/ros/humble/setup.bash
-source install/setup.bash
-
-ros2 run yolo_cpp image_capture_node --ros-args \
-  -p auto_save:=true \
-  -p interval_sec:=0.5
-```
-
----
-
-## 12. 默认代码参数
-
-为了使节点默认采用“按 `p` 拍照”模式，代码中的默认参数应为：
-
-```cpp
-declare_parameter<bool>(
-  "auto_save",
-  false);
-```
-
-默认保存目录应为：
-
-```cpp
-declare_parameter<std::string>(
-  "save_directory",
-  "~/cylinder_dataset");
-```
-
-修改节点代码后重新编译：
-
-```bash
-cd ~/data/Project_Backup/orbbec_software/cylinder_project
-
-source /opt/ros/humble/setup.bash
-
-colcon build --packages-select yolo_cpp
-
-source install/setup.bash
-```
-
-如果代码中的 `auto_save` 默认值仍为 `true`，则直接运行节点时会自动连续拍摄，与本文档描述的默认行为不一致。
-
----
-
-## 13. 常见问题
-
-### 13.1 找不到功能包
-
-报错示例：
-
-```text
-Package 'yolo_cpp' not found
-```
-
-处理方法：
-
-```bash
-cd ~/data/Project_Backup/orbbec_software/cylinder_project
-source /opt/ros/humble/setup.bash
-source install/setup.bash
-```
-
-然后重新运行：
-
-```bash
-ros2 run yolo_cpp image_capture_node
-```
-
-### 13.2 找不到相机启动文件
-
-确认已经成功编译工作空间：
-
-```bash
-cd ~/data/Project_Backup/orbbec_software/cylinder_project
-colcon build
-source install/setup.bash
-```
-
-检查启动文件：
-
-```bash
-ros2 launch orbbec_camera gemini_330_series.launch.py --show-args
-```
-
-### 13.3 节点没有收到图像
-
-检查话题：
-
-```bash
-ros2 topic list | grep /camera/color/image_raw
-```
-
-检查帧率：
-
-```bash
-ros2 topic hz /camera/color/image_raw
-```
-
-如果话题不存在或没有数据，应优先检查相机驱动和 USB 连接。
-
-### 13.4 按 `p` 没有反应
-
-按键输入依赖交互式终端。建议使用以下方式直接启动节点：
-
-```bash
-ros2 run yolo_cpp image_capture_node
-```
-
-不要将按键采集节点放到后台运行，也不要在无法接收标准输入的终端环境中运行。
-
-### 13.5 修改代码后运行结果没有变化
-
-重新编译并加载环境：
-
-```bash
-cd ~/data/Project_Backup/orbbec_software/cylinder_project
-
-colcon build --packages-select yolo_cpp
-
-source install/setup.bash
-```
-
-如果仍然运行旧版本，可清理该功能包的构建结果：
-
-```bash
-rm -rf build/yolo_cpp
-rm -rf install/yolo_cpp
-
-colcon build --packages-select yolo_cpp
+colcon build --packages-select yolo_cpp --symlink-install
 source install/setup.bash
 ```
