@@ -641,24 +641,26 @@ void YoloDetectNode::handleDetectObjects(
   } else if (snapshot.located_detections.empty()) {
     response->message = "detections available but no sphere fit was computed";
   }
-  response->detections.header.stamp = snapshot.image_stamp.to_msg();
+  response->detections.header.stamp = snapshot.image_stamp;
   response->detections.header.frame_id = frame_id;
   response->detections.detections.clear();
   response->detections.detections.reserve(snapshot.detections.size());
 
   for (const Detection & detection : snapshot.detections) {
     vision_msgs::msg::Detection2D detection_msg;
-    detection_msg.header.stamp = snapshot.image_stamp.to_msg();
+    detection_msg.header.stamp = snapshot.image_stamp;
     detection_msg.header.frame_id = frame_id;
     detection_msg.id = detection.class_name;
-    detection_msg.bbox.center.x = static_cast<double>(detection.center.x);
-    detection_msg.bbox.center.y = static_cast<double>(detection.center.y);
+    detection_msg.bbox.center.position.x = static_cast<double>(detection.center.x);
+    detection_msg.bbox.center.position.y = static_cast<double>(detection.center.y);
+
     detection_msg.bbox.center.theta = 0.0;
     detection_msg.bbox.size_x = static_cast<double>(detection.box.width);
     detection_msg.bbox.size_y = static_cast<double>(detection.box.height);
 
     vision_msgs::msg::ObjectHypothesisWithPose hypothesis;
-    hypothesis.hypothesis.id = static_cast<int64_t>(detection.class_id);
+    hypothesis.hypothesis.class_id = static_cast<int64_t>(detection.class_id);
+
     hypothesis.hypothesis.score = static_cast<float>(detection.confidence);
     detection_msg.results.push_back(std::move(hypothesis));
 
