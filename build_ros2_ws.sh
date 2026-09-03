@@ -17,6 +17,9 @@ ROS_DISTRO="${ROS_DISTRO:-${EXPECTED_ROS_DISTRO}}"
 ROS_SETUP="/opt/ros/${ROS_DISTRO}/setup.bash"
 EXPECTED_UBUNTU_VERSION="22.04"
 EXPECTED_UBUNTU_CODENAME="jammy"
+ROS_APT_MIRROR="${ROS_APT_MIRROR:-https://mirrors.ustc.edu.cn/ros2/ubuntu}"
+ROS_KEY_URL="${ROS_KEY_URL:-https://raw.githubusercontent.com/ros/rosdistro/master/ros.key}"
+SYSTEM_PYTHON="/usr/bin/python3"
 
 # If the script is placed in the workspace root, use that directory.
 # Otherwise, fall back to the current directory.
@@ -72,6 +75,16 @@ if [[ "${ROS_DISTRO}" != "${EXPECTED_ROS_DISTRO}" ]]; then
   return 1 2>/dev/null || exit 1
 fi
 
+if [[ ! -x "${SYSTEM_PYTHON}" ]]; then
+  echo "[ERROR] System Python was not found: ${SYSTEM_PYTHON}"
+  return 1 2>/dev/null || exit 1
+fi
+
+# Conda Python can hide ROS' system modules from CMake and rosidl_adapter.
+# Prefer Ubuntu's Python for all ROS build and interface-generation steps.
+export PATH="/usr/bin:/bin:${PATH}"
+unset PYTHONHOME
+
 run_as_root() {
   if [[ "${EUID}" -eq 0 ]]; then
     "$@"
@@ -93,6 +106,8 @@ install_ros_humble() {
   local ros_sources="/etc/apt/sources.list.d/ros2.list"
   local ros_source_line=""
   local temporary_key=""
+  local key_url=""
+  local key_downloaded=false
 
   if [[ ! -f /etc/os-release ]]; then
     echo "[ERROR] /etc/os-release not found; cannot verify the operating system"
@@ -132,19 +147,33 @@ install_ros_humble() {
 
   if [[ ! -s "${ros_keyring}" ]]; then
     temporary_key="$(mktemp /tmp/ros2-archive-key.XXXXXX)"
-    if ! curl -fsSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
-      -o "${temporary_key}"; then
-      rm -f "${temporary_key}"
-      echo "[ERROR] Could not download the ROS apt signing key"
+    for key_url in \
+      "${ROS_KEY_URL}" \
+      "https://cdn.jsdelivr.net/gh/ros/rosdistro@master/ros.key"; do
+      echo "[INFO] Downloading ROS apt signing key: ${key_url}"
+      if curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 \
+        --connect-timeout 15 --max-time 90 "${key_url}" \
+        -o "${temporary_key}" && [[ -s "${temporary_key}" ]]; then
+        if run_as_root gpg --dearmor --yes --output "${ros_keyring}" "${temporary_key}" \
+          && [[ -s "${ros_keyring}" ]]; then
+          key_downloaded=true
+          break
+        fi
+      fi
+      echo "[WARN] Failed to download or decode the ROS apt signing key from ${key_url}"
+    done
+    rm -f "${temporary_key}"
+    if [[ "${key_downloaded}" != true ]]; then
+      run_as_root rm -f "${ros_keyring}"
+      echo "[ERROR] Could not obtain the ROS apt signing key"
+      echo "        Set ROS_KEY_URL to a reachable copy of the official ros.key file."
       return 1
     fi
-    run_as_root gpg --dearmor --yes --output "${ros_keyring}" "${temporary_key}"
     run_as_root chmod 0644 "${ros_keyring}"
-    rm -f "${temporary_key}"
   fi
 
   architecture="$(dpkg --print-architecture)"
-  ros_source_line="deb [arch=${architecture} signed-by=${ros_keyring}] http://packages.ros.org/ros2/ubuntu ${EXPECTED_UBUNTU_CODENAME} main"
+  ros_source_line="deb [arch=${architecture} signed-by=${ros_keyring}] ${ROS_APT_MIRROR} ${EXPECTED_UBUNTU_CODENAME} main"
   if ! grep -Fqx "${ros_source_line}" "${ros_sources}" 2>/dev/null; then
     printf '%s\n' "${ros_source_line}" | run_as_root tee "${ros_sources}" >/dev/null
   fi
@@ -195,6 +224,7 @@ APT_PACKAGES=(
   python3-numpy
   python3-opencv
   python3-pil
+  python3-empy
   python3-tk
 
   # ROS 2 Humble packages used by this workspace and the RealSense driver.
@@ -325,7 +355,11 @@ fi
 # 6. Build.
 echo "[INFO] Running colcon build..."
 COLCON_BUILD_ARGS=(--symlink-install)
-COLCON_BUILD_ARGS+=(--cmake-args "-DOpenCV_DIR=${OPENCV_CMAKE_DIR}" -DBUILD_TESTING=OFF)
+COLCON_BUILD_ARGS+=(--cmake-args
+  "-DOpenCV_DIR=${OPENCV_CMAKE_DIR}"
+  -DBUILD_TESTING=OFF
+  "-DPython3_EXECUTABLE=${SYSTEM_PYTHON}"
+  "-DPYTHON_EXECUTABLE=${SYSTEM_PYTHON}")
 colcon build \
   "${COLCON_BUILD_ARGS[@]}" \
   "${COLCON_ARGS[@]}"
