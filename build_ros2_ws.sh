@@ -10,10 +10,13 @@
 #   source ./build_ros2_ws.sh --clean --packages-select yolo_cpp
 
 set -e
+set -o pipefail
 
 EXPECTED_ROS_DISTRO="humble"
 ROS_DISTRO="${ROS_DISTRO:-${EXPECTED_ROS_DISTRO}}"
 ROS_SETUP="/opt/ros/${ROS_DISTRO}/setup.bash"
+EXPECTED_UBUNTU_VERSION="22.04"
+EXPECTED_UBUNTU_CODENAME="jammy"
 
 # If the script is placed in the workspace root, use that directory.
 # Otherwise, fall back to the current directory.
@@ -69,9 +72,94 @@ if [[ "${ROS_DISTRO}" != "${EXPECTED_ROS_DISTRO}" ]]; then
   return 1 2>/dev/null || exit 1
 fi
 
+run_as_root() {
+  if [[ "${EUID}" -eq 0 ]]; then
+    "$@"
+  else
+    if ! command -v sudo >/dev/null 2>&1; then
+      echo "[ERROR] sudo is required to install ROS 2 and apt dependencies"
+      return 1
+    fi
+    sudo "$@"
+  fi
+}
+
+install_ros_humble() {
+  local os_id=""
+  local os_version=""
+  local os_codename=""
+  local architecture=""
+  local ros_keyring="/usr/share/keyrings/ros-archive-keyring.gpg"
+  local ros_sources="/etc/apt/sources.list.d/ros2.list"
+  local ros_source_line=""
+  local temporary_key=""
+
+  if [[ ! -f /etc/os-release ]]; then
+    echo "[ERROR] /etc/os-release not found; cannot verify the operating system"
+    return 1
+  fi
+
+  # shellcheck disable=SC1091
+  source /etc/os-release
+  os_id="${ID:-}"
+  os_version="${VERSION_ID:-}"
+  os_codename="${VERSION_CODENAME:-}"
+
+  if [[ "${os_id}" != "ubuntu" || "${os_version}" != "${EXPECTED_UBUNTU_VERSION}" ]]; then
+    echo "[ERROR] Automatic ROS 2 Humble installation requires Ubuntu ${EXPECTED_UBUNTU_VERSION}"
+    echo "        Detected: ID=${os_id:-unknown}, VERSION_ID=${os_version:-unknown}"
+    echo "        Use an Ubuntu 22.04/ROS Humble container for this workspace."
+    return 1
+  fi
+  if [[ -n "${os_codename}" && "${os_codename}" != "${EXPECTED_UBUNTU_CODENAME}" ]]; then
+    echo "[ERROR] Ubuntu ${EXPECTED_UBUNTU_VERSION} must use codename ${EXPECTED_UBUNTU_CODENAME}"
+    echo "        Detected codename: ${os_codename}"
+    return 1
+  fi
+
+  if ! command -v apt-get >/dev/null 2>&1; then
+    echo "[ERROR] apt-get is required to install ROS 2 Humble"
+    return 1
+  fi
+  if [[ "${EUID}" -ne 0 ]] && ! command -v sudo >/dev/null 2>&1; then
+    echo "[ERROR] sudo is required to install ROS 2 Humble as a non-root user"
+    return 1
+  fi
+
+  echo "[INFO] ROS 2 Humble is not installed; configuring the ROS apt repository..."
+  run_as_root apt-get update
+  run_as_root apt-get install -y ca-certificates curl gnupg
+
+  if [[ ! -s "${ros_keyring}" ]]; then
+    temporary_key="$(mktemp /tmp/ros2-archive-key.XXXXXX)"
+    if ! curl -fsSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
+      -o "${temporary_key}"; then
+      rm -f "${temporary_key}"
+      echo "[ERROR] Could not download the ROS apt signing key"
+      return 1
+    fi
+    run_as_root gpg --dearmor --yes --output "${ros_keyring}" "${temporary_key}"
+    run_as_root chmod 0644 "${ros_keyring}"
+    rm -f "${temporary_key}"
+  fi
+
+  architecture="$(dpkg --print-architecture)"
+  ros_source_line="deb [arch=${architecture} signed-by=${ros_keyring}] http://packages.ros.org/ros2/ubuntu ${EXPECTED_UBUNTU_CODENAME} main"
+  if ! grep -Fqx "${ros_source_line}" "${ros_sources}" 2>/dev/null; then
+    printf '%s\n' "${ros_source_line}" | run_as_root tee "${ros_sources}" >/dev/null
+  fi
+
+  run_as_root apt-get update
+  echo "[INFO] Installing ROS 2 Humble base..."
+  run_as_root apt-get install -y "ros-${EXPECTED_ROS_DISTRO}-ros-base"
+}
+
 if [[ ! -f "${ROS_SETUP}" ]]; then
-  echo "[ERROR] ROS 2 Humble setup file not found: ${ROS_SETUP}"
-  echo "        Install ROS 2 Humble before running this script."
+  install_ros_humble
+fi
+
+if [[ ! -f "${ROS_SETUP}" ]]; then
+  echo "[ERROR] ROS 2 Humble setup file is still missing: ${ROS_SETUP}"
   return 1 2>/dev/null || exit 1
 fi
 
@@ -154,20 +242,20 @@ for package in "${APT_PACKAGES[@]}"; do
 done
 
 if [[ "${NEED_APT_UPDATE}" == true ]]; then
-  if ! command -v apt-get >/dev/null 2>&1 || ! command -v sudo >/dev/null 2>&1; then
-    echo "[ERROR] apt-get and sudo are required to install dependencies"
+  if ! command -v apt-get >/dev/null 2>&1; then
+    echo "[ERROR] apt-get is required to install dependencies"
     return 1 2>/dev/null || exit 1
   fi
 
   echo "[INFO] Updating apt package indexes..."
-  sudo apt-get update
+  run_as_root apt-get update
 
   for package in "${APT_PACKAGES[@]}"; do
     if is_apt_package_installed "${package}"; then
       echo "[OK] already installed: ${package}"
     else
       echo "[INFO] Installing: ${package}"
-      sudo apt-get install -y "${package}"
+      run_as_root apt-get install -y "${package}"
     fi
   done
 else
