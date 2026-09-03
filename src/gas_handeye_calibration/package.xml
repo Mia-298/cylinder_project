@@ -11,6 +11,8 @@
 
   <depend>cv_bridge</depend>
   <depend>gas_interfaces</depend>
+  <depend>libopencv-dev</depend>
+  <depend>libopencv-contrib-dev</depend>
   <depend>rclcpp</depend>
   <depend>rclpy</depend>
   <depend>sensor_msgs</depend>

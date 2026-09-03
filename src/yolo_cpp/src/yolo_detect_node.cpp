@@ -803,7 +803,6 @@ void YoloDetectNode::imageCallback(
 void YoloDetectNode::pointCloudCallback(
   sensor_msgs::msg::PointCloud2::ConstSharedPtr message)
 {
-  std::uint64_t cycle_index = 0;
   {
     std::lock_guard<std::mutex> lock(capture_mutex_);
     if (
@@ -816,7 +815,6 @@ void YoloDetectNode::pointCloudCallback(
     captured_cloud_message_ = message;
     captured_cloud_arrival_time_ = std::chrono::steady_clock::now();
     capture_state_ = CaptureState::WaitingForColor;
-    cycle_index = capture_cycle_count_;
   }
 }
 
@@ -834,8 +832,6 @@ void YoloDetectNode::processCapturedBundle(
 
     const cv::Mat & frame =
       cv_image->image;
-    const auto cloud_conversion_start =
-      std::chrono::steady_clock::now();
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(
       new pcl::PointCloud<pcl::PointXYZ>());
@@ -843,16 +839,6 @@ void YoloDetectNode::processCapturedBundle(
     pcl::fromROSMsg(
       *cloud_message,
       *cloud);
-
-    const auto cloud_conversion_end =
-      std::chrono::steady_clock::now();
-
-    const double cloud_conversion_time_ms =
-      std::chrono::duration<
-      double,
-      std::milli>(
-      cloud_conversion_end -
-      cloud_conversion_start).count();
 
     const auto inference_start_time =
       std::chrono::steady_clock::now();

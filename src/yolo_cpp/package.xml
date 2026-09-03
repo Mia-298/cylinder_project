@@ -12,7 +12,7 @@
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
   <depend>cv_bridge</depend>
-  <depend>opencv</depend>
+  <depend>libopencv-dev</depend>
   <depend>ament_index_cpp</depend>
   <depend>gas_interfaces</depend>
   <depend>geometry_msgs</depend>
