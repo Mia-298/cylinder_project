@@ -1,0 +1,14 @@
+node_name: handeye_validation_ui
+session_name: "20260906_215914"
+handeye_result_file: ""
+image_topic: "/camera/color/image_raw"
+camera_info_topic: "/camera/color/camera_info"
+robot_pose_service: "/robot/get_pose"
+save_root_dir: "calibration_data/handeye_validation"
+board_dictionary_id: 7
+board_squares_x: 10
+board_squares_y: 7
+board_square_length_m: 0.025
+board_marker_length_m: 0.018
+min_charuco_corners: 12
+min_validation_samples: 8

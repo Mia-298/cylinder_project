@@ -1,0 +1,18 @@
+%YAML:1.0
+---
+node_name: handeye_calibration_node
+service_namespace: /handeye
+image_topic: /camera/color/image_raw
+camera_info_topic: /camera/color/camera_info
+robot_pose_service: /robot/get_pose
+save_root_dir: calibration_data/handeye
+session_name: "20260906_215513"
+publish_debug_image: 1
+robot_pose_timeout_ms: 2000
+board_dictionary_id: 7
+board_squares_x: 10
+board_squares_y: 7
+board_square_length_m: 2.5000000000000001e-02
+board_marker_length_m: 1.7999999999999999e-02
+handeye_method: TSAI
+min_samples: 5
