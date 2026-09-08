@@ -51,7 +51,7 @@ cylinder_project/
 - Ubuntu 22.04
 - ROS2 Humble
 - RealSense 相机
-- AUBO 控制器，默认 `192.168.192.2:30004`
+- AUBO 控制器，默认 `192.168.193.130:30004`
 - OpenCV、cv_bridge、PCL、Eigen、ONNX Runtime、AUBO SDK
 
 每个终端先执行：

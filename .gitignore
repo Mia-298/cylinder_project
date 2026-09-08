@@ -31,3 +31,11 @@ install/
 log/
 output/
 **/output/
+
+
+
+
+
+
+calibration_data/handeye/*/samples/
+calibration_data/handeye/*/debug/

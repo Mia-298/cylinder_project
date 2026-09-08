@@ -20,7 +20,7 @@ src/gas_robot_control/config/aubo_control_collect.yaml
 
 | 参数 | 默认值 |
 | --- | --- |
-| `robot_ip` | `192.168.192.2` |
+| `robot_ip` | `192.168.193.130` |
 | `robot_port` | `30004` |
 | `service_namespace` | `/robot` |
 | `request_timeout_ms` | `8000` |
