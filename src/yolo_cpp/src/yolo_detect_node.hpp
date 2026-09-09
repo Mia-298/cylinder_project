@@ -3,11 +3,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <limits>
 #include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
 #include <atomic>
+#include <array>
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <cv_bridge/cv_bridge.h>
@@ -48,6 +50,9 @@ struct DetectionResult
     // 球面拟合是否成功
     bool sphere_fit_success{false};
 
+    // 相机坐标系到机械臂末端坐标系的变换是否成功
+    bool tool_transform_success{false};
+
     // YOLO bbox 归一化信息，范围为 [0, 1]
     // 0.5为适中位置，例如x<0.5,则表示目标中心偏画面左侧
     // y<0.5表示目标中心偏画面上侧
@@ -62,6 +67,12 @@ struct DetectionResult
     float x{std::numeric_limits<float>::quiet_NaN()};
     float y{std::numeric_limits<float>::quiet_NaN()};
     float z{std::numeric_limits<float>::quiet_NaN()};
+
+    // 球心在机械臂末端/TCP坐标系下的坐标，单位 m
+    // 当 tool_transform_success == false 时保持 NaN
+    float tool_x{std::numeric_limits<float>::quiet_NaN()};
+    float tool_y{std::numeric_limits<float>::quiet_NaN()};
+    float tool_z{std::numeric_limits<float>::quiet_NaN()};
 };
 class YoloDetectNode : public rclcpp::Node
 {
@@ -93,6 +104,13 @@ private:
     std::string point_cloud_topic_;
     std::string sphere_target_class_;
     std::string service_name_;
+    std::string handeye_result_file_;
+    std::string tool_frame_id_;
+
+    // T_tool_camera: 将相机坐标系中的点变换到机械臂末端/TCP坐标系。
+    cv::Mat T_tool_camera_;
+    bool has_tool_camera_transform_{false};
+    std::string handeye_load_error_;
 
     rclcpp::TimerBase::SharedPtr capture_timer_;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr point_cloud_subscription_;
@@ -107,6 +125,18 @@ private:
     void handleDetectObjects(
       const std::shared_ptr<gas_interfaces::srv::DetectObjects::Request> request,
       std::shared_ptr<gas_interfaces::srv::DetectObjects::Response> response);
+
+    bool loadToolCameraMatrix(
+      const std::string & result_file,
+      cv::Mat & T_tool_camera,
+      std::string & error_message) const;
+    bool transformCameraPointToTool(
+      double x_camera,
+      double y_camera,
+      double z_camera,
+      std::array<double, 3> & point_tool_m) const;
+    static bool matrixIsValidHomogeneous(const cv::Mat & T);
+    static cv::Mat invertHomogeneousMatrix(const cv::Mat & T);
 
     
     mutable std::mutex capture_mutex_;

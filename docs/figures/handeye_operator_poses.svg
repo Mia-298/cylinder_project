@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="560" viewBox="0 0 960 560">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4d4d4d"/>
+    </marker>
+    <style>
+      .title{font-family:"Noto Sans CJK SC","Microsoft YaHei",sans-serif;font-size:24px;font-weight:700;fill:#0b257f}
+      .text{font-family:"Noto Sans CJK SC","Microsoft YaHei",sans-serif;font-size:17px;fill:#222}
+      .small{font-family:"Noto Sans CJK SC","Microsoft YaHei",sans-serif;font-size:13px;fill:#555}
+      .board{fill:#f4f4f4;stroke:#777;stroke-width:2;rx:4}
+      .cam{fill:#d9eaf7;stroke:#1672c5;stroke-width:2;rx:5}
+      .lens{fill:#0b257f}
+      .line{stroke:#4d4d4d;stroke-width:1.8;fill:none;marker-end:url(#arrow)}
+      .cell{fill:#f8fbff;stroke:#9bbfe0;stroke-width:1.4;rx:5}
+    </style>
+  </defs>
+  <rect width="960" height="560" fill="#fff"/>
+  <text x="480" y="42" text-anchor="middle" class="title">建议采集 8 组以上并覆盖不同观察角度</text>
+  <g transform="translate(54,86)">
+    <rect width="250" height="170" class="cell"/><rect x="168" y="44" width="46" height="70" class="board"/><rect x="54" y="64" width="52" height="34" class="cam"/><circle cx="96" cy="81" r="8" class="lens"/><path d="M106 81 L168 80" class="line"/><text x="125" y="135" text-anchor="middle" class="text">1 正视</text>
+  </g>
+  <g transform="translate(354,86)">
+    <rect width="250" height="170" class="cell"/><rect x="168" y="44" width="46" height="70" class="board"/><rect x="56" y="36" width="52" height="34" class="cam" transform="rotate(18 82 53)"/><circle cx="99" cy="62" r="8" class="lens"/><path d="M108 64 L168 80" class="line"/><text x="125" y="135" text-anchor="middle" class="text">2 左偏航</text>
+  </g>
+  <g transform="translate(654,86)">
+    <rect width="250" height="170" class="cell"/><rect x="168" y="44" width="46" height="70" class="board"/><rect x="54" y="94" width="52" height="34" class="cam" transform="rotate(-18 80 111)"/><circle cx="96" cy="101" r="8" class="lens"/><path d="M106 100 L168 80" class="line"/><text x="125" y="135" text-anchor="middle" class="text">3 右偏航</text>
+  </g>
+  <g transform="translate(54,306)">
+    <rect width="250" height="170" class="cell"/><rect x="168" y="44" width="46" height="70" class="board"/><rect x="54" y="28" width="52" height="34" class="cam"/><circle cx="96" cy="45" r="8" class="lens"/><path d="M106 46 L170 77" class="line"/><text x="125" y="135" text-anchor="middle" class="text">4 上方俯视</text>
+  </g>
+  <g transform="translate(354,306)">
+    <rect width="250" height="170" class="cell"/><rect x="168" y="44" width="46" height="70" class="board"/><rect x="54" y="112" width="52" height="34" class="cam"/><circle cx="96" cy="129" r="8" class="lens"/><path d="M106 128 L170 87" class="line"/><text x="125" y="135" text-anchor="middle" class="text">5 下方仰视</text>
+  </g>
+  <g transform="translate(654,306)">
+    <rect width="250" height="170" class="cell"/><rect x="168" y="44" width="46" height="70" class="board"/><rect x="54" y="64" width="52" height="34" class="cam" transform="rotate(35 80 81)"/><circle cx="94" cy="89" r="8" class="lens"/><path d="M106 82 L168 80" class="line"/><text x="125" y="135" text-anchor="middle" class="text">6 滚转角度</text>
+  </g>
+  <text x="480" y="520" text-anchor="middle" class="small">继续补充近距离、远距离、组合角度。每次移动后确认画面清晰，再点击“采集”。</text>
+</svg>

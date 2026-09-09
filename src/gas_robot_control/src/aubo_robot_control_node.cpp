@@ -273,7 +273,7 @@ private:
     }
 
     if(enable) {
-      const double mass = 0.0;
+      const double mass = 8.0;  //博赛德负载
       const std::vector<double> cog(3, 0.0);
       const std::vector<double> aom(3, 0.0);
       const std::vector<double> inertia(6, 0.0);

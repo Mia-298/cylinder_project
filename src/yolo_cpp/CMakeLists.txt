@@ -21,7 +21,7 @@ find_package(vision_msgs REQUIRED)
 
 set(
   ONNXRUNTIME_ROOT
-  "${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/onnxruntime"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/onnxruntime"
 )
 if(NOT EXISTS
   "${ONNXRUNTIME_ROOT}/include/onnxruntime_cxx_api.h")
@@ -102,7 +102,7 @@ target_include_directories(
   yolo_detect_node
   PRIVATE
   ${OpenCV_INCLUDE_DIRS}
-  
+  "${ONNXRUNTIME_ROOT}/include"
 )
 
 target_link_libraries(

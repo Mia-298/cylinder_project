@@ -3,9 +3,14 @@ gas_grasp_execution_node:
     yolo_service_name: /yolo/detect_once
     robot_pose_service: /robot/get_pose
     robot_move_l_service: /robot/move_l
-    handeye_status_service: /handeye/status
-    handeye_result_file: ""
     execute_service_name: /grasp/execute_once
+
+    # 与 GraspExecute.srv 的 approach_offset_m 语义一致：
+    # 目标中心到预抓取 TCP 在 base XY 平面内的水平距离。
     default_approach_offset_m: 0.20
+
     min_valid_depth_m: 0.05
     max_valid_depth_m: 5.0
+    min_horizontal_direction_m: 0.0001
+    service_timeout_ms: 3000
+    move_timeout_ms: 30000

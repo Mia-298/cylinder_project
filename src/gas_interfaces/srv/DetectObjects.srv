@@ -1,11 +1,21 @@
-bool publish_debug_image
+bool publish_debug_image                # 是否请求发布/显示调试图像。
 ---
-bool success
-string message
-vision_msgs/Detection2DArray detections
-bool has_sphere_center
-float64[3] sphere_center_m
-float64 sphere_radius_m
-string sphere_frame_id
-string sphere_class_id
-float64 sphere_confidence
+bool success                            # success=true 只表示服务本身成功返回，
+string message                          # 服务状态说明。
+vision_msgs/Detection2DArray detections # YOLO 检测到的所有二维目标。
+
+float64 best_offset_x_px                # 检测框中心相对图像中心的水平像素偏移，右为正、左为负。
+float64 best_offset_y_px                # 检测框中心相对图像中心的垂直像素偏移，下为正、上为负。
+float64 best_width_px                   # 最佳检测框宽度，单位 pixel。
+float64 best_height_px                  # 最佳检测框高度，单位 pixel。
+
+bool has_sphere_center                  # 是否存在有效的点云球面拟合结果。
+float64[3] sphere_center_m              # 球心在相机坐标系下的三维坐标。
+float64 sphere_radius_m                 # 点云球面拟合得到的球半径。
+string sphere_frame_id                  # sphere_center_m 所属的坐标系名称。
+string sphere_class_id                  # 当前执行球面拟合的目标类别名称。
+float64 sphere_confidence               # 执行球面拟合的那个 YOLO 目标的检测置信度。
+
+bool has_sphere_center_tool             # 相机坐标系球心是否成功转换到机械臂 Tool/TCP 坐标系。
+float64[3] sphere_center_tool_m         # 目标球心在机械臂 Tool/TCP 坐标系下的位置。
+string sphere_tool_frame_id             # sphere_center_tool_m 所属的机械臂末端坐标系名称。

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="560" viewBox="0 0 960 560">
+  <style>
+    .title{font-family:"Noto Sans CJK SC","Microsoft YaHei",sans-serif;font-size:24px;font-weight:700;fill:#0b257f}
+    .text{font-family:"Noto Sans CJK SC","Microsoft YaHei",sans-serif;font-size:16px;fill:#222}
+    .small{font-family:"Noto Sans CJK SC","Microsoft YaHei",sans-serif;font-size:13px;fill:#555}
+    .ui{fill:#f6f6f6;stroke:#999;stroke-width:1.5;rx:6}
+    .screen{fill:#20242b;stroke:#555;stroke-width:1.5;rx:4}
+    .panel{fill:#ffffff;stroke:#bfbfbf;stroke-width:1.2;rx:4}
+    .button{fill:#d9eaf7;stroke:#1672c5;stroke-width:1.4;rx:4}
+    .button2{fill:#f7faf7;stroke:#6da874;stroke-width:1.4;rx:4}
+    .button3{fill:#fff8ee;stroke:#c99a43;stroke-width:1.4;rx:4}
+    .line{stroke:#d33;stroke-width:2;fill:none}
+    .callout{fill:#fff7f7;stroke:#d33;stroke-width:1.5;rx:4}
+  </style>
+  <rect width="960" height="560" fill="#fff"/>
+  <text x="480" y="42" text-anchor="middle" class="title">采集界面关键区域</text>
+  <rect x="70" y="74" width="820" height="420" class="ui"/>
+  <rect x="96" y="110" width="540" height="342" class="screen"/>
+  <text x="366" y="274" text-anchor="middle" fill="#9be28f" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="28">相机画面</text>
+  <text x="366" y="312" text-anchor="middle" fill="#d9eaf7" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="16">看到绿色角点 / 坐标轴后再采集</text>
+  <rect x="662" y="110" width="196" height="342" class="panel"/>
+  <text x="760" y="142" text-anchor="middle" class="text">采集控制</text>
+  <rect x="686" y="168" width="66" height="34" class="button2"/><text x="719" y="190" text-anchor="middle" class="small">拖动开启</text>
+  <rect x="768" y="168" width="66" height="34" class="button3"/><text x="801" y="190" text-anchor="middle" class="small">拖动退出</text>
+  <rect x="686" y="224" width="66" height="34" class="button"/><text x="719" y="246" text-anchor="middle" class="small">采集</text>
+  <rect x="768" y="224" width="66" height="34" class="button"/><text x="801" y="246" text-anchor="middle" class="small">完成采集</text>
+  <rect x="686" y="280" width="66" height="34" class="button3"/><text x="719" y="302" text-anchor="middle" class="small">清空样本</text>
+  <rect x="768" y="280" width="66" height="34" class="button3"/><text x="801" y="302" text-anchor="middle" class="small">退出</text>
+  <rect x="686" y="352" width="148" height="54" fill="#f4f4f4" stroke="#bfbfbf" rx="4"/>
+  <text x="760" y="376" text-anchor="middle" class="small">状态提示</text>
+  <text x="760" y="395" text-anchor="middle" class="small">samples=8 / compute done</text>
+  <rect x="100" y="508" width="160" height="34" class="callout"/><text x="180" y="530" text-anchor="middle" class="small">先点拖动开启</text>
+  <path d="M260 508 L690 201" class="line"/>
+  <rect x="286" y="508" width="160" height="34" class="callout"/><text x="366" y="530" text-anchor="middle" class="small">摆好角度点采集</text>
+  <path d="M446 508 L697 258" class="line"/>
+  <rect x="472" y="508" width="160" height="34" class="callout"/><text x="552" y="530" text-anchor="middle" class="small">采够后点完成采集</text>
+  <path d="M632 508 L785 258" class="line"/>
+  <rect x="658" y="508" width="200" height="34" class="callout"/><text x="758" y="530" text-anchor="middle" class="small">状态栏看成功或失败原因</text>
+  <path d="M758 508 L760 406" class="line"/>
+</svg>
