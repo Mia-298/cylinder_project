@@ -64,6 +64,9 @@ def generate_launch_description():
         ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(perception_launch),
+            launch_arguments={
+                'handeye_result_file': LaunchConfiguration('handeye_result_file'),
+            }.items(),
         ),
         Node(
             package='gas_robot_control',
@@ -84,12 +87,7 @@ def generate_launch_description():
             executable='gas_grasp_execution_node',
             name='gas_grasp_execution_node',
             output='screen',
-            parameters=[
-                grasp_config,
-                {
-                    'handeye_result_file': LaunchConfiguration('handeye_result_file'),
-                },
-            ],
+            parameters=[grasp_config],
         ),
         TimerAction(
             period=LaunchConfiguration('execute_delay_sec'),
@@ -101,7 +99,7 @@ def generate_launch_description():
                         'call',
                         '/grasp/execute_once',
                         'gas_interfaces/srv/GraspExecute',
-                        '{wait: true, publish_debug_image: true, approach_offset_m: 0.10}',
+                        '{wait: true, publish_debug_image: true, approach_offset_m: 0.20}',
                     ],
                     output='screen',
                 ),

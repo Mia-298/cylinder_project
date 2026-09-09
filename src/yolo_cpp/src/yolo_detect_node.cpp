@@ -25,317 +25,7 @@
 #include <vision_msgs/msg/detection2_d_array.hpp>
 #include <vision_msgs/msg/object_hypothesis_with_pose.hpp>
 
-namespace
-{
-// -----------------------------------------------------------------------------
-// RGB sphere localization parameters
-// -----------------------------------------------------------------------------
-// Camera intrinsics copied from /camera/color/camera_info (1280 x 720).
-constexpr double kRgbFx = 609.7733764648438;
-constexpr double kRgbFy = 610.0523071289062;
-constexpr double kRgbCx = 637.7689208984375;
-constexpr double kRgbCy = 364.3594055175781;
 
-// plumb_bob distortion coefficients: k1, k2, p1, p2, k3.
-constexpr double kRgbK1 = -0.034665949642658234;
-constexpr double kRgbK2 =  0.038352519273757935;
-constexpr double kRgbP1 =  0.0004620052932295948;
-constexpr double kRgbP2 =  0.0001331235107500106;
-constexpr double kRgbK3 = -0.01328078843653202;
-
-// IMPORTANT: set this to the measured physical radius of the spherical body.
-constexpr double kPhysicalSphereRadiusM = 0.090;
-
-// Keep only the middle part of the full-cylinder YOLO box.
-constexpr double kRgbTopCropRatio = 0.28;
-constexpr double kRgbBottomCropRatio = 0.18;
-constexpr double kRgbHorizontalCropRatio = 0.03;
-
-struct RgbSphereEstimate
-{
-  bool success{false};
-  std::string failure_reason;
-  cv::Rect roi;
-  cv::RotatedRect ellipse;
-  cv::Point2f center_px{0.0F, 0.0F};
-  double equivalent_radius_px{0.0};
-  cv::Vec3d center_m{0.0, 0.0, 0.0};
-  double center_distance_m{0.0};
-  std::size_t edge_point_count{0U};
-  cv::Mat edge_debug;
-};
-
-cv::Rect clipRectToImage(
-  const cv::Rect & rectangle,
-  const cv::Size & image_size)
-{
-  const cv::Rect image_rectangle(
-    0,
-    0,
-    image_size.width,
-    image_size.height);
-
-  return rectangle & image_rectangle;
-}
-
-cv::Mat rgbCameraMatrix()
-{
-  return (cv::Mat_<double>(3, 3) <<
-    kRgbFx, 0.0, kRgbCx,
-    0.0, kRgbFy, kRgbCy,
-    0.0, 0.0, 1.0);
-}
-
-cv::Mat rgbDistortionCoefficients()
-{
-  return (cv::Mat_<double>(1, 5) <<
-    kRgbK1,
-    kRgbK2,
-    kRgbP1,
-    kRgbP2,
-    kRgbK3);
-}
-
-RgbSphereEstimate estimateSphereFromRgb(
-  const cv::Mat & frame,
-  const cv::Rect & detection_box)
-{
-  RgbSphereEstimate result;
-
-  if (frame.empty()) {
-    result.failure_reason = "RGB frame is empty";
-    return result;
-  }
-
-  const cv::Rect clipped_box =
-    clipRectToImage(detection_box, frame.size());
-
-  if (clipped_box.width < 40 || clipped_box.height < 40) {
-    result.failure_reason = "YOLO box is too small for RGB sphere fitting";
-    return result;
-  }
-
-  const int crop_left = static_cast<int>(std::lround(
-    static_cast<double>(clipped_box.width) * kRgbHorizontalCropRatio));
-  const int crop_right = crop_left;
-  const int crop_top = static_cast<int>(std::lround(
-    static_cast<double>(clipped_box.height) * kRgbTopCropRatio));
-  const int crop_bottom = static_cast<int>(std::lround(
-    static_cast<double>(clipped_box.height) * kRgbBottomCropRatio));
-
-  result.roi = cv::Rect(
-    clipped_box.x + crop_left,
-    clipped_box.y + crop_top,
-    clipped_box.width - crop_left - crop_right,
-    clipped_box.height - crop_top - crop_bottom);
-
-  result.roi = clipRectToImage(result.roi, frame.size());
-
-  if (result.roi.width < 40 || result.roi.height < 40) {
-    result.failure_reason = "middle RGB ROI is too small";
-    return result;
-  }
-
-  cv::Mat gray;
-  cv::cvtColor(frame(result.roi), gray, cv::COLOR_BGR2GRAY);
-  cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(2.0, cv::Size(8, 8));
-  cv::Mat enhanced;
-  clahe->apply(gray, enhanced);
-
-  cv::GaussianBlur(
-    enhanced,
-    enhanced,
-    cv::Size(5, 5),
-    1.2,
-    1.2);
-
-  cv::Mat edges;
-  cv::Canny(
-    enhanced,
-    edges,
-    45.0,
-    135.0,
-    3,
-    true);
-  const cv::Mat kernel = cv::getStructuringElement(
-    cv::MORPH_ELLIPSE,
-    cv::Size(3, 3));
-  cv::morphologyEx(edges, edges, cv::MORPH_CLOSE, kernel);
-
-  result.edge_debug = edges.clone();
-  std::vector<cv::Point2f> silhouette_points;
-  silhouette_points.reserve(
-    static_cast<std::size_t>(result.roi.height) * 2U);
-
-  const int center_x = result.roi.width / 2;
-  const int min_half_span =
-    std::max(10, static_cast<int>(0.16 * result.roi.width));
-  const int min_total_span =
-    std::max(20, static_cast<int>(0.40 * result.roi.width));
-  const int border_margin =
-    std::max(2, static_cast<int>(0.015 * result.roi.width));
-
-  for (int y = 0; y < edges.rows; ++y) {
-    const std::uint8_t * row = edges.ptr<std::uint8_t>(y);
-
-    int left_x = -1;
-    int right_x = -1;
-
-    for (int x = border_margin; x < edges.cols - border_margin; ++x) {
-      if (row[x] == 0U) {
-        continue;
-      }
-
-      if (x < center_x - min_half_span && left_x < 0) {
-        left_x = x;
-      }
-
-      if (x > center_x + min_half_span) {
-        right_x = x;
-      }
-    }
-
-    if (left_x < 0 || right_x < 0) {
-      continue;
-    }
-
-    if (right_x - left_x < min_total_span) {
-      continue;
-    }
-
-    silhouette_points.emplace_back(
-      static_cast<float>(left_x + result.roi.x),
-      static_cast<float>(y + result.roi.y));
-
-    silhouette_points.emplace_back(
-      static_cast<float>(right_x + result.roi.x),
-      static_cast<float>(y + result.roi.y));
-  }
-
-  result.edge_point_count = silhouette_points.size();
-
-  if (silhouette_points.size() < 30U) {
-    result.failure_reason = "too few left/right sphere silhouette points";
-    return result;
-  }
-
-  result.ellipse = cv::fitEllipse(silhouette_points);
-  result.center_px = result.ellipse.center;
-
-  const double axis_width =
-    static_cast<double>(result.ellipse.size.width);
-  const double axis_height =
-    static_cast<double>(result.ellipse.size.height);
-
-  const double major_axis = std::max(axis_width, axis_height);
-  const double minor_axis = std::min(axis_width, axis_height);
-
-  if (!std::isfinite(major_axis) || !std::isfinite(minor_axis) ||
-      minor_axis <= 1.0)
-  {
-    result.failure_reason = "RGB ellipse axes are invalid";
-    return result;
-  }
-  const double axis_ratio = major_axis / minor_axis;
-  if (axis_ratio > 1.40) {
-    result.failure_reason = "RGB fitted ellipse is too elongated";
-    return result;
-  }
-
-  if (major_axis < 0.35 * clipped_box.width ||
-      major_axis > 1.30 * clipped_box.width)
-  {
-    result.failure_reason = "RGB fitted ellipse size is inconsistent with YOLO box";
-    return result;
-  }
-
-  result.equivalent_radius_px =
-    0.5 * std::sqrt(axis_width * axis_height);
-
-  const double angle_rad =
-    static_cast<double>(result.ellipse.angle) * CV_PI / 180.0;
-
-  const cv::Point2f axis_x(
-    static_cast<float>(std::cos(angle_rad)),
-    static_cast<float>(std::sin(angle_rad)));
-  const cv::Point2f axis_y(-axis_x.y, axis_x.x);
-
-  const float half_width = 0.5F * result.ellipse.size.width;
-  const float half_height = 0.5F * result.ellipse.size.height;
-
-  std::vector<cv::Point2f> distorted_points{
-    result.center_px,
-    result.center_px + axis_x * half_width,
-    result.center_px - axis_x * half_width,
-    result.center_px + axis_y * half_height,
-    result.center_px - axis_y * half_height};
-
-  std::vector<cv::Point2f> normalized_points;
-  cv::undistortPoints(
-    distorted_points,
-    normalized_points,
-    rgbCameraMatrix(),
-    rgbDistortionCoefficients());
-
-  if (normalized_points.size() != distorted_points.size()) {
-    result.failure_reason = "failed to undistort RGB ellipse points";
-    return result;
-  }
-
-  const cv::Point2f normalized_center = normalized_points[0];
-
-  double normalized_radius = 0.0;
-  for (std::size_t index = 1U; index < normalized_points.size(); ++index) {
-    const cv::Point2f delta = normalized_points[index] - normalized_center;
-    normalized_radius += std::sqrt(
-      static_cast<double>(delta.x) * static_cast<double>(delta.x) +
-      static_cast<double>(delta.y) * static_cast<double>(delta.y));
-  }
-  normalized_radius /= 4.0;
-
-  if (!std::isfinite(normalized_radius) || normalized_radius <= 1.0e-6) {
-    result.failure_reason = "RGB normalized sphere radius is invalid";
-    return result;
-  }
-  const double alpha = std::atan(normalized_radius);
-  const double sin_alpha = std::sin(alpha);
-
-  if (!std::isfinite(sin_alpha) || sin_alpha <= 1.0e-6) {
-    result.failure_reason = "RGB apparent sphere angle is invalid";
-    return result;
-  }
-
-  result.center_distance_m =
-    kPhysicalSphereRadiusM / sin_alpha;
-
-  cv::Vec3d ray(
-    static_cast<double>(normalized_center.x),
-    static_cast<double>(normalized_center.y),
-    1.0);
-
-  const double ray_norm = cv::norm(ray);
-  if (!std::isfinite(ray_norm) || ray_norm <= 1.0e-9) {
-    result.failure_reason = "RGB sphere center ray is invalid";
-    return result;
-  }
-
-  ray /= ray_norm;
-  result.center_m = ray * result.center_distance_m;
-
-  if (!std::isfinite(result.center_m[0]) ||
-      !std::isfinite(result.center_m[1]) ||
-      !std::isfinite(result.center_m[2]) ||
-      result.center_m[2] <= 0.0)
-  {
-    result.failure_reason = "RGB sphere XYZ is invalid";
-    return result;
-  }
-
-  result.success = true;
-  return result;
-}
-
-}  // namespace
 
 YoloDetectNode::YoloDetectNode(bool enable_vis)
 : Node("yolo_detect_node")
@@ -367,6 +57,14 @@ YoloDetectNode::YoloDetectNode(bool enable_vis)
     "service_name",
     "/yolo/detect_once");
 
+  handeye_result_file_ = declare_parameter<std::string>(
+    "handeye_result_file",
+    "");
+
+  tool_frame_id_ = declare_parameter<std::string>(
+    "tool_frame_id",
+    "tool");
+
   capture_interval_sec_ =
     declare_parameter<double>(
       "capture_interval_sec",
@@ -383,6 +81,31 @@ YoloDetectNode::YoloDetectNode(bool enable_vis)
   sphere_fitter_ =
     std::make_unique<SphereFitter>(
     sphere_parameters);
+
+  if (!handeye_result_file_.empty()) {
+    has_tool_camera_transform_ = loadToolCameraMatrix(
+      handeye_result_file_,
+      T_tool_camera_,
+      handeye_load_error_);
+
+    if (has_tool_camera_transform_) {
+      RCLCPP_INFO(
+        get_logger(),
+        "Loaded T_tool_camera from: %s",
+        handeye_result_file_.c_str());
+    } else {
+      RCLCPP_WARN(
+        get_logger(),
+        "Tool-frame output disabled: %s",
+        handeye_load_error_.c_str());
+    }
+  } else {
+    handeye_load_error_ = "handeye_result_file is empty";
+    RCLCPP_WARN(
+      get_logger(),
+      "Tool-frame output disabled: handeye_result_file is empty");
+  }
+
   point_cloud_subscription_ =
     create_subscription<
     sensor_msgs::msg::PointCloud2>(
@@ -440,6 +163,10 @@ YoloDetectNode::YoloDetectNode(bool enable_vis)
     get_logger(),
     "Service name: %s",
     service_name_.c_str());
+  RCLCPP_INFO(
+    get_logger(),
+    "Tool frame id: %s",
+    tool_frame_id_.c_str());
   RCLCPP_INFO(
     get_logger(),
     "Capture interval: %.3f s",
@@ -610,6 +337,19 @@ YoloDetectNode::findBestDetectionResult(
     result.z =
         located_detection->sphere.center_m.z();
 
+    std::array<double, 3> point_tool_m{};
+    if (transformCameraPointToTool(
+        static_cast<double>(result.x),
+        static_cast<double>(result.y),
+        static_cast<double>(result.z),
+        point_tool_m))
+    {
+        result.tool_transform_success = true;
+        result.tool_x = static_cast<float>(point_tool_m[0]);
+        result.tool_y = static_cast<float>(point_tool_m[1]);
+        result.tool_z = static_cast<float>(point_tool_m[2]);
+    }
+
     return result;
 }
 
@@ -667,12 +407,83 @@ void YoloDetectNode::handleDetectObjects(
     response->detections.detections.push_back(std::move(detection_msg));
   }
 
+  /*
+   * 输出目标类别中 YOLO 置信度最高的检测框信息，
+   * 用于点云球拟合失败后的二维 fallback。
+   *
+   * 像素偏移定义：
+   *   best_offset_x_px = bbox_center_x - image_center_x
+   *   best_offset_y_px = bbox_center_y - image_center_y
+   *
+   * 因此：
+   *   X > 0：目标位于图像中心右侧
+   *   X < 0：目标位于图像中心左侧
+   *   Y > 0：目标位于图像中心下方
+   *   Y < 0：目标位于图像中心上方
+   */
+  response->best_offset_x_px =
+    std::numeric_limits<double>::quiet_NaN();
+  response->best_offset_y_px =
+    std::numeric_limits<double>::quiet_NaN();
+  response->best_width_px =
+    std::numeric_limits<double>::quiet_NaN();
+  response->best_height_px =
+    std::numeric_limits<double>::quiet_NaN();
+
+  const Detection * best_detection = nullptr;
+
+  for (const Detection & detection : snapshot.detections) {
+    if (
+      !sphere_target_class_.empty() &&
+      detection.class_name != sphere_target_class_)
+    {
+      continue;
+    }
+
+    if (
+      best_detection == nullptr ||
+      detection.confidence > best_detection->confidence)
+    {
+      best_detection = &detection;
+    }
+  }
+
+  if (
+    best_detection != nullptr &&
+    snapshot.image_size.width > 0 &&
+    snapshot.image_size.height > 0)
+  {
+    const double image_center_x =
+      static_cast<double>(snapshot.image_size.width) * 0.5;
+    const double image_center_y =
+      static_cast<double>(snapshot.image_size.height) * 0.5;
+
+    const double detection_center_x =
+      static_cast<double>(best_detection->box.x) +
+      static_cast<double>(best_detection->box.width) * 0.5;
+    const double detection_center_y =
+      static_cast<double>(best_detection->box.y) +
+      static_cast<double>(best_detection->box.height) * 0.5;
+
+    response->best_offset_x_px =
+      detection_center_x - image_center_x;
+    response->best_offset_y_px =
+      detection_center_y - image_center_y;
+    response->best_width_px =
+      static_cast<double>(best_detection->box.width);
+    response->best_height_px =
+      static_cast<double>(best_detection->box.height);
+  }
+
   response->has_sphere_center = false;
   response->sphere_center_m.fill(std::numeric_limits<double>::quiet_NaN());
   response->sphere_radius_m = std::numeric_limits<double>::quiet_NaN();
   response->sphere_frame_id = frame_id;
   response->sphere_class_id.clear();
   response->sphere_confidence = std::numeric_limits<double>::quiet_NaN();
+  response->has_sphere_center_tool = false;
+  response->sphere_center_tool_m.fill(std::numeric_limits<double>::quiet_NaN());
+  response->sphere_tool_frame_id = tool_frame_id_;
 
   if (!snapshot.located_detections.empty()) {
     const LocatedDetection & located = snapshot.located_detections.front();
@@ -686,11 +497,163 @@ void YoloDetectNode::handleDetectObjects(
       response->sphere_center_m[1] = static_cast<double>(located.sphere.center_m.y());
       response->sphere_center_m[2] = static_cast<double>(located.sphere.center_m.z());
       response->sphere_radius_m = static_cast<double>(located.sphere.radius_m);
-      response->message = "latest detection snapshot returned with sphere fit";
+
+      std::array<double, 3> point_tool_m{};
+      if (transformCameraPointToTool(
+          response->sphere_center_m[0],
+          response->sphere_center_m[1],
+          response->sphere_center_m[2],
+          point_tool_m))
+      {
+        response->has_sphere_center_tool = true;
+        response->sphere_center_tool_m = point_tool_m;
+        response->message =
+          "latest detection snapshot returned with sphere fit and tool-frame transform";
+      } else {
+        response->message =
+          "latest detection snapshot returned with sphere fit; tool-frame transform unavailable: " +
+          handeye_load_error_;
+      }
     } else {
       response->message = "detections available but sphere fit is not valid";
     }
   }
+}
+
+bool YoloDetectNode::loadToolCameraMatrix(
+  const std::string & result_file,
+  cv::Mat & T_tool_camera,
+  std::string & error_message) const
+{
+  cv::FileStorage fs(result_file, cv::FileStorage::READ);
+  if (!fs.isOpened()) {
+    error_message = "failed to open hand-eye result file: " + result_file;
+    return false;
+  }
+
+  cv::Mat T_read;
+  fs["tool_camera_matrix"] >> T_read;
+  if (T_read.empty()) {
+    cv::Mat T_camera_tool;
+    fs["camera_tool_matrix"] >> T_camera_tool;
+    if (T_camera_tool.empty()) {
+      error_message =
+        "hand-eye result file does not contain tool_camera_matrix or camera_tool_matrix";
+      return false;
+    }
+
+    if (T_camera_tool.type() != CV_64F) {
+      T_camera_tool.convertTo(T_camera_tool, CV_64F);
+    }
+    if (!matrixIsValidHomogeneous(T_camera_tool)) {
+      error_message = "camera_tool_matrix is not a valid homogeneous 4x4 matrix";
+      return false;
+    }
+
+    T_tool_camera = invertHomogeneousMatrix(T_camera_tool);
+    error_message.clear();
+    return true;
+  }
+
+  if (T_read.type() != CV_64F) {
+    T_read.convertTo(T_read, CV_64F);
+  }
+  if (!matrixIsValidHomogeneous(T_read)) {
+    error_message = "tool_camera_matrix is not a valid homogeneous 4x4 matrix";
+    return false;
+  }
+
+  T_tool_camera = T_read.clone();
+  error_message.clear();
+  return true;
+}
+
+bool YoloDetectNode::transformCameraPointToTool(
+  double x_camera,
+  double y_camera,
+  double z_camera,
+  std::array<double, 3> & point_tool_m) const
+{
+  point_tool_m.fill(std::numeric_limits<double>::quiet_NaN());
+
+  if (!has_tool_camera_transform_ || !matrixIsValidHomogeneous(T_tool_camera_)) {
+    return false;
+  }
+  if (!std::isfinite(x_camera) || !std::isfinite(y_camera) || !std::isfinite(z_camera)) {
+    return false;
+  }
+
+  const cv::Mat point_camera = (cv::Mat_<double>(4, 1) <<
+    x_camera, y_camera, z_camera, 1.0);
+  const cv::Mat point_tool = T_tool_camera_ * point_camera;
+
+  const double x_tool = point_tool.at<double>(0, 0);
+  const double y_tool = point_tool.at<double>(1, 0);
+  const double z_tool = point_tool.at<double>(2, 0);
+  const double w_tool = point_tool.at<double>(3, 0);
+
+  if (!std::isfinite(x_tool) || !std::isfinite(y_tool) ||
+      !std::isfinite(z_tool) || !std::isfinite(w_tool) ||
+      std::abs(w_tool) < 1e-12)
+  {
+    return false;
+  }
+
+  point_tool_m[0] = x_tool / w_tool;
+  point_tool_m[1] = y_tool / w_tool;
+  point_tool_m[2] = z_tool / w_tool;
+  return true;
+}
+
+bool YoloDetectNode::matrixIsValidHomogeneous(const cv::Mat & T)
+{
+  if (T.rows != 4 || T.cols != 4 || (T.type() != CV_64F && T.type() != CV_32F)) {
+    return false;
+  }
+
+  cv::Mat T64;
+  if (T.type() == CV_64F) {
+    T64 = T;
+  } else {
+    T.convertTo(T64, CV_64F);
+  }
+
+  for (int row = 0; row < 4; ++row) {
+    for (int col = 0; col < 4; ++col) {
+      if (!std::isfinite(T64.at<double>(row, col))) {
+        return false;
+      }
+    }
+  }
+
+  constexpr double kBottomRowTolerance = 1e-8;
+  return
+    std::abs(T64.at<double>(3, 0)) <= kBottomRowTolerance &&
+    std::abs(T64.at<double>(3, 1)) <= kBottomRowTolerance &&
+    std::abs(T64.at<double>(3, 2)) <= kBottomRowTolerance &&
+    std::abs(T64.at<double>(3, 3) - 1.0) <= kBottomRowTolerance;
+}
+
+cv::Mat YoloDetectNode::invertHomogeneousMatrix(const cv::Mat & T)
+{
+  CV_Assert(matrixIsValidHomogeneous(T));
+
+  cv::Mat T64;
+  if (T.type() == CV_64F) {
+    T64 = T;
+  } else {
+    T.convertTo(T64, CV_64F);
+  }
+
+  const cv::Mat R = T64(cv::Range(0, 3), cv::Range(0, 3));
+  const cv::Mat t = T64(cv::Range(0, 3), cv::Range(3, 4));
+  const cv::Mat R_inv = R.t();
+  const cv::Mat t_inv = -R_inv * t;
+
+  cv::Mat T_inv = cv::Mat::eye(4, 4, CV_64F);
+  R_inv.copyTo(T_inv(cv::Range(0, 3), cv::Range(0, 3)));
+  t_inv.copyTo(T_inv(cv::Range(0, 3), cv::Range(3, 4)));
+  return T_inv;
 }
 
 void YoloDetectNode::captureTimerCallback()
@@ -918,45 +881,7 @@ void YoloDetectNode::processCapturedBundle(
       }
     }
 
-    RgbSphereEstimate rgb_sphere;
-
-    if (best_detection != nullptr) {
-      rgb_sphere = estimateSphereFromRgb(
-        frame,
-        best_detection->box);
-
-      if (rgb_sphere.success) {
-        RCLCPP_INFO(
-          get_logger(),
-          "Capture cycle %llu: RGB sphere SUCCESS; "
-          "center_px=[%.2f %.2f], radius_px=%.2f, "
-          "ellipse=[%.2f x %.2f], edge_points=%zu, "
-          "XYZ=[%.6f %.6f %.6f] m, range=%.6f m",
-          static_cast<unsigned long long>(cycle_index),
-          rgb_sphere.center_px.x,
-          rgb_sphere.center_px.y,
-          rgb_sphere.equivalent_radius_px,
-          rgb_sphere.ellipse.size.width,
-          rgb_sphere.ellipse.size.height,
-          rgb_sphere.edge_point_count,
-          rgb_sphere.center_m[0],
-          rgb_sphere.center_m[1],
-          rgb_sphere.center_m[2],
-          rgb_sphere.center_distance_m);
-      } else {
-        RCLCPP_WARN(
-          get_logger(),
-          "Capture cycle %llu: RGB sphere FAILED; reason=%s, "
-          "ROI=[x=%d y=%d w=%d h=%d], edge_points=%zu",
-          static_cast<unsigned long long>(cycle_index),
-          rgb_sphere.failure_reason.c_str(),
-          rgb_sphere.roi.x,
-          rgb_sphere.roi.y,
-          rgb_sphere.roi.width,
-          rgb_sphere.roi.height,
-          rgb_sphere.edge_point_count);
-      }
-    }
+    
 
     std::vector<LocatedDetection>
       located_detections;
@@ -1154,76 +1079,6 @@ void YoloDetectNode::processCapturedBundle(
       cv::Scalar(0, 0, 255),
       cv::FILLED,
       cv::LINE_AA);
-  }
-
-  // -----------------------------------------------------------------------
-  // RGB sphere visualization.
-  // Yellow rectangle: middle ROI used for Canny.
-  // Cyan ellipse: fitted spherical silhouette.
-  // Magenta point: estimated 2-D projection center of the sphere.
-  // -----------------------------------------------------------------------
-  if (best_detection != nullptr && rgb_sphere.roi.area() > 0) {
-    cv::rectangle(
-      display_frame,
-      rgb_sphere.roi,
-      cv::Scalar(0, 255, 255),
-      2,
-      cv::LINE_AA);
-  }
-
-  if (rgb_sphere.success) {
-    cv::ellipse(
-      display_frame,
-      rgb_sphere.ellipse,
-      cv::Scalar(255, 255, 0),
-      3,
-      cv::LINE_AA);
-
-    cv::circle(
-      display_frame,
-      rgb_sphere.center_px,
-      6,
-      cv::Scalar(255, 0, 255),
-      cv::FILLED,
-      cv::LINE_AA);
-
-    std::ostringstream rgb_text_stream;
-    rgb_text_stream
-      << std::fixed
-      << std::setprecision(3)
-      << "RGB XYZ: ["
-      << rgb_sphere.center_m[0] << ", "
-      << rgb_sphere.center_m[1] << ", "
-      << rgb_sphere.center_m[2] << "] m"
-      << "  r_px="
-      << std::setprecision(1)
-      << rgb_sphere.equivalent_radius_px;
-
-    cv::putText(
-      display_frame,
-      rgb_text_stream.str(),
-      cv::Point(30, 155),
-      cv::FONT_HERSHEY_SIMPLEX,
-      0.65,
-      cv::Scalar(255, 255, 0),
-      2,
-      cv::LINE_AA);
-  } else if (best_detection != nullptr) {
-    cv::putText(
-      display_frame,
-      "RGB sphere fit false",
-      cv::Point(30, 155),
-      cv::FONT_HERSHEY_SIMPLEX,
-      0.65,
-      cv::Scalar(0, 165, 255),
-      2,
-      cv::LINE_AA);
-  }
-
-  if (!rgb_sphere.edge_debug.empty()) {
-    cv::imshow(
-      "rgb_sphere_edges",
-      rgb_sphere.edge_debug);
   }
 
   /*

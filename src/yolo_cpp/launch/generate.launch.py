@@ -1,3 +1,6 @@
+import glob
+import os
+
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
@@ -5,6 +8,20 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
+
+
+def _latest_handeye_result_file():
+    pattern = os.path.join(
+        'calibration_data',
+        'handeye',
+        '*',
+        'results',
+        'handeye_result.yaml',
+    )
+    candidates = glob.glob(pattern)
+    if not candidates:
+        return ''
+    return max(candidates, key=os.path.getmtime)
 
 
 def generate_launch_description():
@@ -70,6 +87,16 @@ def generate_launch_description():
             default_value='/yolo/detect_once',
             description='Service used to trigger one-shot YOLO detection.',
         ),
+        DeclareLaunchArgument(
+            'handeye_result_file',
+            default_value=_latest_handeye_result_file(),
+            description='Hand-eye result YAML containing tool_camera_matrix.',
+        ),
+        DeclareLaunchArgument(
+            'tool_frame_id',
+            default_value='tool',
+            description='Name reported for the robot end-effector/TCP frame.',
+        ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(camera_launch),
             launch_arguments={
@@ -89,6 +116,8 @@ def generate_launch_description():
                 'sphere_target_class': LaunchConfiguration('sphere_target_class'),
                 'capture_interval_sec': LaunchConfiguration('capture_interval_sec'),
                 'service_name': LaunchConfiguration('service_name'),
+                'handeye_result_file': LaunchConfiguration('handeye_result_file'),
+                'tool_frame_id': LaunchConfiguration('tool_frame_id'),
             }],
             condition=IfCondition(LaunchConfiguration('use_yolo')),
         ),
