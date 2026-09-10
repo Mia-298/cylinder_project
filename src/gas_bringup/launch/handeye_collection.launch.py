@@ -30,6 +30,7 @@ def _launch_capture_ui(context):
             'compute_service': service_namespace + '/compute',
             'status_service': service_namespace + '/status',
             'handguide_service': '/robot/handguide',
+            'trajectory_config_file': LaunchConfiguration('trajectory_config_file').perform(context),
             'display_charuco_corner_limit': 12,
             'display_width': 1280,
             'display_height': 960,
@@ -68,6 +69,11 @@ def generate_launch_description():
         FindPackageShare('gas_handeye_calibration'),
         'config',
         'handeye_calibration.yaml',
+    ])
+    default_trajectory_config = PathJoinSubstitution([
+        FindPackageShare('gas_handeye_calibration'),
+        'config',
+        'handeye_auto_sampling.yaml',
     ])
 
     return LaunchDescription([
@@ -110,6 +116,11 @@ def generate_launch_description():
             'save_root_dir',
             default_value=default_save_root_dir,
             description='Root directory used to store hand-eye sessions.',
+        ),
+        DeclareLaunchArgument(
+            'trajectory_config_file',
+            default_value=default_trajectory_config,
+            description='TCP trajectory file used by the capture GUI.',
         ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(camera_launch),

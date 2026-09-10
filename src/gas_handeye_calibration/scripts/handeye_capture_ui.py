@@ -6,7 +6,6 @@ import signal
 import threading
 import time
 from dataclasses import dataclass
-from typing import Optional, Tuple
 
 import cv2
 import numpy as np
@@ -17,7 +16,10 @@ from gas_interfaces.srv import (
     HandEyeClearSamples,
     HandEyeCompute,
     HandEyeGetStatus,
+    RobotGetPose,
+    RobotMoveL,
     RobotSetHandguide,
+    RobotStop,
 )
 from PIL import Image as PilImage
 from PIL import ImageTk
@@ -26,6 +28,8 @@ from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import CameraInfo, Image
 import tkinter as tk
 from tkinter import ttk
+
+from handeye_auto_sampling.config import append_pose, load_trajectory, pose_error
 
 
 try:
@@ -230,6 +234,11 @@ class HandeyeCaptureNode(Node):
         self.compute_client = self.create_client(HandEyeCompute, self.compute_service)
         self.status_client = self.create_client(HandEyeGetStatus, self.status_service)
         self.handguide_client = self.create_client(RobotSetHandguide, self.handguide_service)
+        self.robot_pose_client = self.create_client(RobotGetPose, "/robot/get_pose")
+        self.robot_move_l_client = self.create_client(RobotMoveL, "/robot/move_l")
+        self.robot_stop_client = self.create_client(RobotStop, "/robot/stop")
+        self.trajectory_config_file = self.declare_parameter(
+            "trajectory_config_file", "").value
 
         self._lock = threading.Lock()
         self._latest_snapshot = Snapshot(
@@ -434,9 +443,14 @@ class HandeyeCaptureApp:
         self.clear_button = None
         self.handguide_on_button = None
         self.handguide_off_button = None
+        self.save_pose_button = None
+        self.auto_sample_button = None
+        self.stop_auto_button = None
         self._closing = False
         self._refresh_after_id = None
         self._ros_watch_after_id = None
+        self._auto_stop = threading.Event()
+        self._auto_running = False
 
         self._build_ui()
         self._schedule_refresh()
@@ -491,19 +505,40 @@ class HandeyeCaptureApp:
         )
         self.compute_button.grid(row=1, column=1, sticky="ew", pady=(0, 8))
 
+        self.save_pose_button = ttk.Button(
+            button_grid,
+            text="保存示教位姿",
+            command=lambda: self._run_action("save pose", self._save_pose_worker),
+        )
+        self.save_pose_button.grid(row=2, column=0, sticky="ew", padx=(0, 8), pady=(0, 8))
+
+        self.auto_sample_button = ttk.Button(
+            button_grid,
+            text="按轨迹自动采样",
+            command=lambda: self._run_action("auto sampling", self._auto_sampling_worker),
+        )
+        self.auto_sample_button.grid(row=2, column=1, sticky="ew", pady=(0, 8))
+
         self.clear_button = ttk.Button(
             button_grid,
             text="清空样本",
             command=lambda: self._run_action("clear", self._clear_worker),
         )
-        self.clear_button.grid(row=2, column=0, sticky="ew", padx=(0, 8), pady=(0, 8))
+        self.clear_button.grid(row=3, column=0, sticky="ew", padx=(0, 8), pady=(0, 8))
 
         quit_button = ttk.Button(
             button_grid,
             text="退出",
             command=self._on_close,
         )
-        quit_button.grid(row=2, column=1, sticky="ew", pady=(0, 8))
+        quit_button.grid(row=3, column=1, sticky="ew", pady=(0, 8))
+
+        self.stop_auto_button = ttk.Button(
+            button_grid,
+            text="停止自动采样",
+            command=self._stop_auto_sampling,
+        )
+        self.stop_auto_button.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(0, 8))
 
         button_grid.columnconfigure(0, weight=1)
         button_grid.columnconfigure(1, weight=1)
@@ -588,16 +623,27 @@ class HandeyeCaptureApp:
             self.clear_button,
             self.handguide_on_button,
             self.handguide_off_button,
+            self.save_pose_button,
+            self.auto_sample_button,
         ):
             if widget is not None:
                 try:
                     widget.configure(state=state)
                 except tk.TclError:
                     pass
+        if self.stop_auto_button is not None:
+            try:
+                self.stop_auto_button.configure(
+                    state=tk.NORMAL if busy and self._auto_running else tk.DISABLED)
+            except tk.TclError:
+                pass
 
     def _run_action(self, label: str, worker_fn) -> None:
         if self.node.is_busy() or self._closing:
             return
+        if label == "auto sampling":
+            self._auto_stop.clear()
+            self._auto_running = True
         self.node.set_busy(True)
         self._set_ui_busy(True)
         self.node.set_message(f"{label}...")
@@ -618,6 +664,7 @@ class HandeyeCaptureApp:
     def _finish_action(self, message: str) -> None:
         if self._closing:
             return
+        self._auto_running = False
         self.node.set_message(message)
         self.node.set_busy(False)
         self._set_ui_busy(False)
@@ -641,6 +688,115 @@ class HandeyeCaptureApp:
             timeout_sec=20.0,
         )
         return response.message if response.success else f"drag off failed: {response.message}"
+
+    def _get_robot_pose(self, timeout_sec: float):
+        response = self.node.call_service_sync(
+            self.node.robot_pose_client,
+            RobotGetPose.Request(),
+            timeout_sec=timeout_sec,
+        )
+        if not response.success or len(response.tcp_xyz_m_rpy_rad) != 6:
+            raise RuntimeError(response.message or "invalid robot pose response")
+        return [float(value) for value in response.tcp_xyz_m_rpy_rad]
+
+    def _save_pose_worker(self) -> str:
+        if not self.node.trajectory_config_file:
+            raise RuntimeError("trajectory_config_file is not configured")
+        pose = self._get_robot_pose(timeout_sec=15.0)
+        append_pose(self.node.trajectory_config_file, pose)
+        return (
+            f"pose saved: x={pose[0]:.6f}, y={pose[1]:.6f}, z={pose[2]:.6f}, "
+            f"rx={pose[3]:.6f}, ry={pose[4]:.6f}, rz={pose[5]:.6f}")
+
+    def _stop_robot(self, timeout_sec: float) -> str:
+        response = self.node.call_service_sync(
+            self.node.robot_stop_client,
+            RobotStop.Request(),
+            timeout_sec=timeout_sec,
+        )
+        if not response.success:
+            raise RuntimeError(response.message or "robot stop failed")
+        return response.message
+
+    def _stop_auto_sampling(self) -> None:
+        if not self._auto_running:
+            return
+        self._auto_stop.set()
+        self.node.set_message("stop requested")
+
+        def stop_worker():
+            try:
+                self._stop_robot(timeout_sec=5.0)
+            except Exception as exc:
+                self.node.set_message(f"stop failed: {exc}")
+
+        threading.Thread(target=stop_worker, daemon=True).start()
+
+    def _auto_sampling_worker(self) -> str:
+        if not self.node.trajectory_config_file:
+            raise RuntimeError("trajectory_config_file is not configured")
+        trajectory = load_trajectory(self.node.trajectory_config_file)
+        self.node.set_message(f"auto sampling: {len(trajectory.poses)} poses loaded")
+
+        handguide_response = self.node.call_service_sync(
+            self.node.handguide_client,
+            RobotSetHandguide.Request(enable=False),
+            timeout_sec=trajectory.service_timeout_sec,
+        )
+        if not handguide_response.success:
+            raise RuntimeError(f"drag exit failed: {handguide_response.message}")
+
+        for index, target in enumerate(trajectory.poses, 1):
+            if self._auto_stop.is_set():
+                self._stop_robot(trajectory.service_timeout_sec)
+                raise RuntimeError("auto sampling stopped")
+
+            move_request = RobotMoveL.Request()
+            for axis, value in enumerate(target):
+                move_request.tcp_xyz_m_rpy_rad[axis] = value
+            move_request.wait = False
+            move_response = self.node.call_service_sync(
+                self.node.robot_move_l_client,
+                move_request,
+                timeout_sec=trajectory.service_timeout_sec,
+            )
+            if not move_response.success:
+                raise RuntimeError(f"move to pose {index} failed: {move_response.message}")
+
+            deadline = time.monotonic() + trajectory.move_timeout_sec
+            while True:
+                if self._auto_stop.is_set():
+                    self._stop_robot(trajectory.service_timeout_sec)
+                    raise RuntimeError("auto sampling stopped")
+                actual = self._get_robot_pose(trajectory.service_timeout_sec)
+                position_error, orientation_error = pose_error(actual, target)
+                self.node.set_message(
+                    f"auto sampling {index}/{len(trajectory.poses)}: "
+                    f"position error={position_error * 1000:.1f} mm")
+                if (position_error <= trajectory.position_tolerance_m and
+                        orientation_error <= trajectory.orientation_tolerance_rad):
+                    break
+                if time.monotonic() >= deadline:
+                    raise TimeoutError(f"pose {index} did not reach the configured tolerance")
+                time.sleep(0.1)
+
+            time.sleep(trajectory.settle_time_sec)
+            # Read once immediately before the sample request. The backend also
+            # reads the robot pose while handling /handeye/add_sample.
+            self._get_robot_pose(trajectory.service_timeout_sec)
+            sample_response = self.node.call_service_sync(
+                self.node.add_sample_client,
+                HandEyeAddSample.Request(),
+                timeout_sec=max(30.0, trajectory.service_timeout_sec),
+            )
+            if not sample_response.success:
+                raise RuntimeError(f"sample at pose {index} failed: {sample_response.message}")
+            self.node.update_sample_count(sample_response.sample_count)
+            self.node.set_message(
+                f"auto sampling {index}/{len(trajectory.poses)} completed, "
+                f"samples={sample_response.sample_count}")
+
+        return f"auto sampling completed: {len(trajectory.poses)} poses"
 
     def _capture_worker(self) -> str:
         response = self.node.call_service_sync(
