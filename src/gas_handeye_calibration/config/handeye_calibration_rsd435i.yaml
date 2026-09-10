@@ -1,3 +1,4 @@
+# docs/新版标定板文件/rsd435i_charuco_qr_300mm_v1.pdf
 handeye_calibration_node:
   ros__parameters:
     service_namespace: /handeye
@@ -8,12 +9,14 @@ handeye_calibration_node:
     session_name: ""
     publish_debug_image: true
     robot_pose_timeout_ms: 2000
-    board_dictionary_id: 7
+    board_dictionary_id: 7  # DICT_5X5_1000
     board_squares_x: 10
-    board_squares_y: 7
+    board_squares_y: 10
     board_square_length_m: 0.025
     board_marker_length_m: 0.018
-    board_legacy_pattern: true
-    min_charuco_corners: 4
+    board_legacy_pattern: false
+    # Markers intersecting the center 90 mm panel; retain all other original IDs.
+    board_excluded_marker_ids: [17, 18, 21, 22, 27, 28, 31, 32]
+    min_charuco_corners: 20
     handeye_method: TSAI
     min_samples: 5

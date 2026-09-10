@@ -12,6 +12,7 @@
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
   <exec_depend>gas_handeye_calibration</exec_depend>
   <exec_depend>gas_grasp_execution</exec_depend>
   <exec_depend>gas_interfaces</exec_depend>

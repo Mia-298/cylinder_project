@@ -2,6 +2,7 @@
 
 #include <array>
 #include <chrono>
+#include <cstdint>
 #include <filesystem>
 #include <future>
 #include <memory>
@@ -168,6 +169,9 @@ private:
   int board_squares_y_ = 7;
   double board_square_length_m_ = 0.025;
   double board_marker_length_m_ = 0.018;
+  bool board_legacy_pattern_ = true;
+  std::vector<int64_t> board_excluded_marker_ids_;
+  int min_charuco_corners_ = 4;
   std::string handeye_method_ = "TSAI";
   int min_samples_ = 5;
   int robot_pose_timeout_ms_ = 2000;

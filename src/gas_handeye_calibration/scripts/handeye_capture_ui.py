@@ -44,7 +44,8 @@ class Snapshot:
 
 
 def _make_charuco_board(dictionary_id: int, squares_x: int, squares_y: int,
-                        square_length_m: float, marker_length_m: float):
+                        square_length_m: float, marker_length_m: float,
+                        legacy_pattern: bool = True):
     dictionary = cv2.aruco.getPredefinedDictionary(dictionary_id)
     if hasattr(cv2.aruco, "CharucoBoard_create"):
         board = cv2.aruco.CharucoBoard_create(
@@ -62,7 +63,11 @@ def _make_charuco_board(dictionary_id: int, squares_x: int, squares_y: int,
             dictionary,
         )
     if hasattr(board, "setLegacyPattern"):
-        board.setLegacyPattern(True)
+        board.setLegacyPattern(legacy_pattern)
+    elif not legacy_pattern:
+        raise RuntimeError(
+            "board_legacy_pattern=false requires Python OpenCV with "
+            "CharucoBoard.setLegacyPattern (for example OpenCV 4.10).")
 
     if hasattr(cv2.aruco, "DetectorParameters_create"):
         detector_params = cv2.aruco.DetectorParameters_create()
@@ -176,6 +181,12 @@ class HandeyeCaptureNode(Node):
             "board_square_length_m", 0.025).value
         self.board_marker_length_m = self.declare_parameter(
             "board_marker_length_m", 0.018).value
+        self.board_legacy_pattern = self.declare_parameter("board_legacy_pattern", True).value
+        self.board_excluded_marker_ids = set(self.declare_parameter(
+            "board_excluded_marker_ids", rclpy.Parameter.Type.INTEGER_ARRAY).value or [])
+        self.min_charuco_corners = int(self.declare_parameter("min_charuco_corners", 4).value)
+        if not 4 <= self.min_charuco_corners <= (self.board_squares_x - 1) * (self.board_squares_y - 1):
+            raise ValueError("min_charuco_corners must be between 4 and the board corner count")
         self.display_charuco_corner_limit = int(self.declare_parameter(
             "display_charuco_corner_limit", 12).value)
         self.display_width = self.declare_parameter("display_width", 1280).value
@@ -194,7 +205,11 @@ class HandeyeCaptureNode(Node):
             self.board_squares_y,
             self.board_square_length_m,
             self.board_marker_length_m,
+            self.board_legacy_pattern,
         )
+        if any(marker_id < 0 or marker_id >= self.board_squares_x * self.board_squares_y // 2
+               for marker_id in self.board_excluded_marker_ids):
+            raise ValueError("board_excluded_marker_ids contains an ID outside the board")
 
         self.image_sub = self.create_subscription(
             Image,
@@ -299,6 +314,11 @@ class HandeyeCaptureNode(Node):
                 self.detector_params,
                 self.aruco_detector,
             )
+            if marker_ids is not None and self.board_excluded_marker_ids:
+                keep = [i for i, marker_id in enumerate(marker_ids.reshape(-1))
+                        if int(marker_id) not in self.board_excluded_marker_ids]
+                marker_corners = [marker_corners[i] for i in keep]
+                marker_ids = marker_ids[keep]
             if marker_ids is not None and len(marker_ids) > 0:
                 marker_count = int(len(marker_ids))
                 cv2.aruco.drawDetectedMarkers(annotated, marker_corners, marker_ids)
@@ -321,10 +341,12 @@ class HandeyeCaptureNode(Node):
                         f"charuco corners: {charuco_count} "
                         f"(showing {preview_count})"
                     )
+                    if charuco_count < self.min_charuco_corners:
+                        detection_text += f", need >= {self.min_charuco_corners}"
                 else:
                     detection_text = f"markers: {marker_count}"
 
-        color = (0, 220, 0) if charuco_count > 0 else (0, 220, 255)
+        color = (0, 220, 0) if charuco_count >= self.min_charuco_corners else (0, 220, 255)
         self._put_overlay_text(annotated, detection_text, color=color)
         return Snapshot(
             frame_bgr=annotated,

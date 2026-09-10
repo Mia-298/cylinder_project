@@ -94,6 +94,10 @@ HandEyeCalibrationNode::HandEyeCalibrationNode()
   board_squares_y_ = declare_parameter<int>("board_squares_y", 7);
   board_square_length_m_ = declare_parameter<double>("board_square_length_m", 0.025);
   board_marker_length_m_ = declare_parameter<double>("board_marker_length_m", 0.018);
+  board_legacy_pattern_ = declare_parameter<bool>("board_legacy_pattern", true);
+  board_excluded_marker_ids_ = declare_parameter<std::vector<int64_t>>(
+    "board_excluded_marker_ids", std::vector<int64_t>{});
+  min_charuco_corners_ = declare_parameter<int>("min_charuco_corners", 4);
   handeye_method_ = declare_parameter<std::string>("handeye_method", "TSAI");
   min_samples_ = declare_parameter<int>("min_samples", 5);
 
@@ -108,6 +112,10 @@ HandEyeCalibrationNode::HandEyeCalibrationNode()
   }
   if (min_samples_ < 1) {
     throw std::runtime_error("min_samples must be >= 1");
+  }
+  if (min_charuco_corners_ < 4 ||
+      min_charuco_corners_ > (board_squares_x_ - 1) * (board_squares_y_ - 1)) {
+    throw std::runtime_error("min_charuco_corners must be between 4 and the board corner count");
   }
   if (robot_pose_timeout_ms_ <= 0) {
     throw std::runtime_error("robot_pose_timeout_ms must be positive");
@@ -133,6 +141,44 @@ HandEyeCalibrationNode::HandEyeCalibrationNode()
     static_cast<float>(board_square_length_m_),
     static_cast<float>(board_marker_length_m_),
     dictionary_);
+  if (!board_legacy_pattern_) {
+    // OpenCV 4.5 uses a bottom-left origin and a different even-row pattern.
+    // Match the supplied generator's top-left origin, marker order and adjacency.
+    board_->objPoints.clear();
+    board_->nearestMarkerIdx.assign(board_->chessboardCorners.size(), {});
+    board_->nearestMarkerCorners.assign(board_->chessboardCorners.size(), {});
+    const float square = static_cast<float>(board_square_length_m_);
+    const float marker = static_cast<float>(board_marker_length_m_);
+    const float margin = (square - marker) / 2.0F;
+    for (int row = 0; row < board_squares_y_; ++row) {
+      for (int col = 0; col < board_squares_x_; ++col) {
+        if ((row + col) % 2 == 0) {
+          continue;
+        }
+        const float x = col * square + margin;
+        const float y = row * square + margin;
+        const int marker_index = static_cast<int>(board_->objPoints.size());
+        board_->objPoints.push_back({
+          {x, y, 0.0F}, {x + marker, y, 0.0F},
+          {x + marker, y + marker, 0.0F}, {x, y + marker, 0.0F}});
+        for (int corner = 0; corner < 4; ++corner) {
+          const int cx = col + (corner == 1 || corner == 2 ? 1 : 0);
+          const int cy = row + (corner >= 2 ? 1 : 0);
+          if (cx == 0 || cx >= board_squares_x_ || cy == 0 || cy >= board_squares_y_) {
+            continue;
+          }
+          const int id = (cy - 1) * (board_squares_x_ - 1) + cx - 1;
+          board_->nearestMarkerIdx[id].push_back(marker_index);
+          board_->nearestMarkerCorners[id].push_back(corner);
+        }
+      }
+    }
+  }
+  for (int64_t id : board_excluded_marker_ids_) {
+    if (id < 0 || id >= static_cast<int64_t>(board_->ids.size())) {
+      throw std::runtime_error("board_excluded_marker_ids contains an ID outside the board");
+    }
+  }
   detector_params_ = cv::aruco::DetectorParameters::create();
 
   service_group_ = create_callback_group(rclcpp::CallbackGroupType::Reentrant);
@@ -663,6 +709,14 @@ bool HandEyeCalibrationNode::estimateBoardPose(
     detector_params_,
     rejected);
 
+  for (size_t i = marker_ids.size(); i > 0; --i) {
+    if (std::find(board_excluded_marker_ids_.begin(), board_excluded_marker_ids_.end(),
+                 marker_ids[i - 1]) != board_excluded_marker_ids_.end()) {
+      marker_ids.erase(marker_ids.begin() + (i - 1));
+      marker_corners.erase(marker_corners.begin() + (i - 1));
+    }
+  }
+
   if (marker_ids.empty()) {
     error_message = "no aruco markers detected";
     return false;
@@ -680,6 +734,11 @@ bool HandEyeCalibrationNode::estimateBoardPose(
 
   if (interpolated_count <= 0 || charuco_ids.empty()) {
     error_message = "no charuco corners interpolated";
+    return false;
+  }
+  if (interpolated_count < min_charuco_corners_) {
+    error_message = "charuco corners too few: " + std::to_string(interpolated_count) +
+      ", need >= " + std::to_string(min_charuco_corners_);
     return false;
   }
 
@@ -806,6 +865,13 @@ bool HandEyeCalibrationNode::saveSessionMetadata() const
     fs << "board_squares_y" << board_squares_y_;
     fs << "board_square_length_m" << board_square_length_m_;
     fs << "board_marker_length_m" << board_marker_length_m_;
+    fs << "board_legacy_pattern" << board_legacy_pattern_;
+    fs << "board_excluded_marker_ids" << "[";
+    for (int64_t id : board_excluded_marker_ids_) {
+      fs << static_cast<int>(id);
+    }
+    fs << "]";
+    fs << "min_charuco_corners" << min_charuco_corners_;
     fs << "handeye_method" << handeye_method_;
     fs << "min_samples" << min_samples_;
     fs.release();
