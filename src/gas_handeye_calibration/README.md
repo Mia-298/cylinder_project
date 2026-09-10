@@ -137,3 +137,25 @@ tool_camera_matrix
 ros2 launch gas_bringup grasp_pipeline.launch.py \
   handeye_result_file:=calibration_data/handeye/<session>/results/handeye_result.yaml
 ```
+
+## 自动轨迹采样
+
+采集界面的 `拖动开启` 用于进入手动示教模式。拖动到一个姿态后点击
+`保存示教位姿`，程序会调用 `/robot/get_pose` 读取当前 TCP 位姿，并追加到
+`trajectory_config_file` 指向的 YAML 的 `poses` 列表中。坐标按基坐标系记录，单位为米和弧度。
+
+点击 `按轨迹自动采样` 后，程序逐点执行 MoveL，轮询 `/robot/get_pose` 判断到位，等待稳定，再调用
+`/handeye/add_sample`。采样服务内部还会重新调用 `/robot/get_pose`，因此保存的样本使用采样时的实际位姿。
+自动过程中可点击 `停止自动采样`，程序会设置停止标志并调用 `/robot/stop`。
+
+默认轨迹文件为 `config/handeye_auto_sampling.yaml`，也可以在启动时指定另一份文件：
+
+```bash
+ros2 launch gas_bringup handeye_collection.launch.py \
+  handeye_params:=src/gas_handeye_calibration/config/handeye_calibration_rsd435i.yaml \
+  trajectory_config_file:=src/gas_handeye_calibration/config/handeye_auto_sampling.yaml
+```
+
+自动采样只读取轨迹文件中的 `poses`；`settle_time_sec`、`move_timeout_sec`、
+`position_tolerance_m` 和 `orientation_tolerance_rad` 控制等待、到位判断和采样条件。
+移动速度和加速度沿用 `gas_robot_control` 当前配置。
