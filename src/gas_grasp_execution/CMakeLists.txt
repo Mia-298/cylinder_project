@@ -11,15 +11,16 @@ find_package(rclcpp REQUIRED)
 find_package(vision_msgs REQUIRED)
 find_package(OpenCV REQUIRED COMPONENTS core)
 
-# The HyRMS C++ Proxy SDK is shipped with cpp_proxy_test_v2.4.0.  Its
+# The HyRMS C++ Proxy SDK is kept with the other third-party SDKs. Its
 # generated com_interfaces package is prebuilt alongside libhyrms_export.so.
 set(_project_root "${CMAKE_CURRENT_SOURCE_DIR}/../..")
-set(HYRMS_PROXY_ROOT "${_project_root}/cpp_proxy_test_v2.4.0/cpp_proxy_test/src/hyrms_export")
+set(HYRMS_SDK_ROOT "${_project_root}/src/third_party/cpp_proxy_test_v2.4.0/cpp_proxy_test")
+set(HYRMS_PROXY_ROOT "${HYRMS_SDK_ROOT}/src/hyrms_export")
 set(HYRMS_PROXY_INCLUDE_DIR "${HYRMS_PROXY_ROOT}/include")
 set(HYRMS_PROXY_LIB_DIR "${HYRMS_PROXY_ROOT}/lib")
 set(HYRMS_PROXY_LIB "${HYRMS_PROXY_LIB_DIR}/libhyrms_export.so")
 set(HYRMS_COM_INTERFACES_ROOT
-  "${_project_root}/cpp_proxy_test_v2.4.0/cpp_proxy_test/install/com_interfaces")
+  "${HYRMS_SDK_ROOT}/install/com_interfaces")
 set(HYRMS_COM_INTERFACES_INCLUDE_DIR "${HYRMS_COM_INTERFACES_ROOT}/include/com_interfaces")
 set(HYRMS_COM_INTERFACES_LIB_DIR "${HYRMS_COM_INTERFACES_ROOT}/lib")
 set(HYRMS_COM_INTERFACES_TYPESUPPORT_LIB
