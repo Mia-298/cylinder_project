@@ -1,0 +1,6 @@
+int32 gripper_index
+bool activate
+---
+bool success
+int32 error_code
+string message

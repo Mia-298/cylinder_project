@@ -1,6 +1,14 @@
 bool wait
 bool publish_debug_image
 float64 approach_offset_m
+bool close_gripper
+bool activate_gripper
+int32 gripper_index
+int32 gripper_position
+int32 gripper_velocity
+int32 gripper_force
+int32 gripper_max_time_ms
+bool gripper_wait
 ---
 bool success
 int32 error_code

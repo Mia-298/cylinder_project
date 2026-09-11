@@ -37,6 +37,21 @@ ros2 service call /grasp/execute_once gas_interfaces/srv/GraspExecute \
   "{wait: true, publish_debug_image: true, approach_offset_m: 0.20}"
 ```
 
+需要在预抓取到位后闭合夹爪时，可选传入以下字段：
+
+```bash
+ros2 service call /grasp/execute_once gas_interfaces/srv/GraspExecute \
+  "{wait: true, publish_debug_image: true, approach_offset_m: 0.20, \
+  close_gripper: true, activate_gripper: true, gripper_index: 0, \
+  gripper_position: 70, gripper_velocity: 50, gripper_force: 50, \
+  gripper_max_time_ms: 3000, gripper_wait: true}"
+```
+
+`close_gripper=false` 时行为与原来一致，不调用夹爪。`gripper_position`、
+`gripper_velocity`、`gripper_force` 的范围均为 `0~100`；位置百分比按
+`gas_robot_control/config/aubo_control.yaml` 中的开合位置线性映射。夹爪必须由
+`aubo_robot_control_node` 使用 AUBO SDK 配置并连接，不能启动时让机器人仍在运动。
+
 字段说明：
 
 | 请求字段 | 说明 |

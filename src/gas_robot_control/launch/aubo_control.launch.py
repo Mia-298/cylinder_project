@@ -11,7 +11,6 @@ def generate_launch_description():
         'config',
         'aubo_control.yaml',
     ])
-
     return LaunchDescription([
         DeclareLaunchArgument(
             'config',

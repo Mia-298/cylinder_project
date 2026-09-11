@@ -3,6 +3,8 @@ gas_grasp_execution_node:
     yolo_service_name: /yolo/detect_once
     robot_pose_service: /robot/get_pose
     robot_move_l_service: /robot/move_l
+    gripper_activate_service: /gripper/activate
+    gripper_move_service: /gripper/move
     execute_service_name: /grasp/execute_once
 
     # 与 GraspExecute.srv 的 approach_offset_m 语义一致：
@@ -14,3 +16,4 @@ gas_grasp_execution_node:
     min_horizontal_direction_m: 0.0001
     service_timeout_ms: 3000
     move_timeout_ms: 30000
+    gripper_service_timeout_ms: 10000

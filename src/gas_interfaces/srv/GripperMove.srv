@@ -1,0 +1,10 @@
+int32 gripper_index
+int32 position
+int32 velocity
+int32 force
+int32 max_time_ms
+bool wait
+---
+bool success
+int32 error_code
+string message

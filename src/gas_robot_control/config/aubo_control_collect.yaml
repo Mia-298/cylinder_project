@@ -14,3 +14,12 @@ aubo_robot_control_node:
     blend_radius_m: 0.0
     duration_s: 0.0
     motion_timeout_sec: 120.0
+
+    gripper_name: "gripper"
+    gripper_model: ""
+    gripper_device_name: ""
+    gripper_auto_connect: false
+    gripper_auto_enable: false
+    gripper_open_position_m: 0.0
+    gripper_closed_position_m: 0.08
+    gripper_max_force_n: 40.0

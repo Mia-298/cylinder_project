@@ -21,7 +21,10 @@
 #include <gas_interfaces/srv/robot_set_enable.hpp>
 #include <gas_interfaces/srv/robot_set_motion_params.hpp>
 #include <gas_interfaces/srv/robot_stop.hpp>
+#include <gas_interfaces/srv/gripper_activate.hpp>
+#include <gas_interfaces/srv/gripper_move.hpp>
 
+#include "aubo/aubo/gripper_interface.h"
 #include "aubo/aubo_sdk/rpc.h"
 
 #ifndef M_PI
@@ -34,7 +37,8 @@ constexpr int kSuccess = 0;
 constexpr int kNoRobotInterface = -1001;
 constexpr int kInvalidRequest = -1002;
 constexpr int kTimeout = -1003;
-constexpr int kException = -1004;
+constexpr int kNoGripperInterface = -1004;
+constexpr int kException = -1005;
 
 std::string serviceName(const std::string & service_namespace, const std::string & name)
 {
@@ -92,6 +96,20 @@ public:
     blend_radius_m_ = this->declare_parameter<double>("blend_radius_m", 0.0);
     duration_s_ = this->declare_parameter<double>("duration_s", 0.0);
     motion_timeout_sec_ = this->declare_parameter<double>("motion_timeout_sec", 120.0);
+    gripper_name_ = this->declare_parameter<std::string>("gripper_name", "gripper");
+    gripper_model_ = this->declare_parameter<std::string>("gripper_model", "");
+    gripper_device_name_ =
+      this->declare_parameter<std::string>("gripper_device_name", "");
+    gripper_auto_connect_ =
+      this->declare_parameter<bool>("gripper_auto_connect", false);
+    gripper_auto_enable_ =
+      this->declare_parameter<bool>("gripper_auto_enable", false);
+    gripper_open_position_m_ =
+      this->declare_parameter<double>("gripper_open_position_m", 0.0);
+    gripper_closed_position_m_ =
+      this->declare_parameter<double>("gripper_closed_position_m", 0.08);
+    gripper_max_force_n_ =
+      this->declare_parameter<double>("gripper_max_force_n", 40.0);
 
     rpc_ = std::make_shared<arcs::aubo_sdk::RpcClient>();
     rpc_->setRequestTimeout(request_timeout_ms_);
@@ -135,12 +153,26 @@ public:
     handguide_srv_ = this->create_service<gas_interfaces::srv::RobotSetHandguide>(
       serviceName(service_namespace_, "handguide"),
       std::bind(
-        &AuboRobotControlNode::handguideCallback, this, std::placeholders::_1,
+          &AuboRobotControlNode::handguideCallback, this, std::placeholders::_1,
+          std::placeholders::_2));
+    gripper_activate_srv_ = this->create_service<gas_interfaces::srv::GripperActivate>(
+      serviceName("/gripper", "activate"),
+      std::bind(
+        &AuboRobotControlNode::gripperActivateCallback, this, std::placeholders::_1,
+        std::placeholders::_2));
+    gripper_move_srv_ = this->create_service<gas_interfaces::srv::GripperMove>(
+      serviceName("/gripper", "move"),
+      std::bind(
+        &AuboRobotControlNode::gripperMoveCallback, this, std::placeholders::_1,
         std::placeholders::_2));
 
     RCLCPP_INFO(
       this->get_logger(), "AUBO services ready under namespace: %s",
       service_namespace_.c_str());
+    RCLCPP_INFO(
+      this->get_logger(),
+      "AUBO gripper services ready under /gripper; configured name=%s, auto_connect=%s",
+      gripper_name_.c_str(), gripper_auto_connect_ ? "true" : "false");
 
     if(auto_connect_) {
       std::lock_guard<std::mutex> lock(robot_mutex_);
@@ -159,6 +191,17 @@ public:
               RCLCPP_ERROR(this->get_logger(), "AUBO auto-handguide failed: %d", handguide_result);
             } else {
               RCLCPP_INFO(this->get_logger(), "AUBO entered hand-guiding mode automatically.");
+            }
+          }
+        }
+        if(gripper_auto_connect_) {
+          const int gripper_result = configureGripperLocked();
+          if(gripper_result != kSuccess) {
+            RCLCPP_ERROR(this->get_logger(), "AUBO gripper auto-connect failed: %d", gripper_result);
+          } else if(gripper_auto_enable_) {
+            const int enable_result = gripper_interface_->gripperEnable(gripper_name_, true);
+            if(enable_result != kSuccess) {
+              RCLCPP_ERROR(this->get_logger(), "AUBO gripper auto-enable failed: %d", enable_result);
             }
           }
         }
@@ -319,6 +362,44 @@ private:
       return kTimeout;
     }
 
+    return kSuccess;
+  }
+
+  int configureGripperLocked()
+  {
+    auto robot_interface = robotInterfaceLocked();
+    if(!robot_interface) {
+      return kNoRobotInterface;
+    }
+
+    gripper_interface_ = rpc_->getGripperInterface();
+    if(!gripper_interface_) {
+      return kNoGripperInterface;
+    }
+
+    const auto names = gripper_interface_->gripperGetNames();
+    const bool already_added =
+      std::find(names.begin(), names.end(), gripper_name_) != names.end();
+    if(!already_added) {
+      if(gripper_model_.empty()) {
+        return kNoGripperInterface;
+      }
+      const int result = gripper_interface_->gripperAdd(gripper_name_, gripper_model_);
+      if(result != kSuccess) {
+        return result;
+      }
+    }
+
+    if(!gripper_interface_->gripperIsConnected(gripper_name_)) {
+      if(gripper_device_name_.empty()) {
+        return kNoGripperInterface;
+      }
+      const int result =
+        gripper_interface_->gripperConnect(gripper_name_, gripper_device_name_);
+      if(result != kSuccess) {
+        return result;
+      }
+    }
     return kSuccess;
   }
 
@@ -524,6 +605,92 @@ private:
     }
   }
 
+  void gripperActivateCallback(
+    std::shared_ptr<gas_interfaces::srv::GripperActivate::Request> request,
+    std::shared_ptr<gas_interfaces::srv::GripperActivate::Response> response)
+  {
+    try {
+      if(request->gripper_index != 0) {
+        setResponse(*response, kInvalidRequest, "This direct SDK configuration supports gripper_index=0 only.");
+        return;
+      }
+
+      std::lock_guard<std::mutex> lock(robot_mutex_);
+      int result = configureGripperLocked();
+      if(result == kSuccess) {
+        result = gripper_interface_->gripperEnable(gripper_name_, request->activate);
+      }
+      setResponse(
+        *response, result,
+        result == kSuccess ? (request->activate ? "Gripper enabled." : "Gripper disabled.") :
+        "Gripper enable/disable failed.");
+    } catch(const std::exception & e) {
+      setExceptionResponse(*response, e);
+    }
+  }
+
+  void gripperMoveCallback(
+    std::shared_ptr<gas_interfaces::srv::GripperMove::Request> request,
+    std::shared_ptr<gas_interfaces::srv::GripperMove::Response> response)
+  {
+    try {
+      if(request->gripper_index != 0 || request->position < 0 || request->position > 100 ||
+         request->velocity < 0 || request->velocity > 100 || request->force < 0 ||
+         request->force > 100 || request->max_time_ms < 0 || request->max_time_ms > 30000)
+      {
+        setResponse(
+          *response, kInvalidRequest,
+          "gripper_index must be 0; position/velocity/force must be in [0,100]; "
+          "max_time_ms must be in [0,30000]");
+        return;
+      }
+      if(gripper_open_position_m_ == gripper_closed_position_m_ || gripper_max_force_n_ <= 0.0) {
+        setResponse(*response, kInvalidRequest, "Invalid direct SDK gripper calibration parameters.");
+        return;
+      }
+
+      std::lock_guard<std::mutex> lock(robot_mutex_);
+      int result = configureGripperLocked();
+      if(result == kSuccess) {
+        const double ratio = static_cast<double>(request->position) / 100.0;
+        const double position = gripper_open_position_m_ +
+          ratio * (gripper_closed_position_m_ - gripper_open_position_m_);
+        result = gripper_interface_->gripperSetPosition(gripper_name_, position);
+        if(result == kSuccess) {
+          result = gripper_interface_->gripperSetVelocity(
+            gripper_name_, static_cast<double>(request->velocity) / 100.0);
+        }
+        if(result == kSuccess) {
+          result = gripper_interface_->gripperSetForce(
+            gripper_name_, gripper_max_force_n_ * static_cast<double>(request->force) / 100.0);
+        }
+        if(result == kSuccess) {
+          result = gripper_interface_->gripperMove(gripper_name_);
+        }
+      }
+
+      if(result == kSuccess && request->wait) {
+        const int timeout_ms = request->max_time_ms > 0 ? request->max_time_ms : 30000;
+        const auto deadline = std::chrono::steady_clock::now() +
+          std::chrono::milliseconds(timeout_ms);
+        while(gripper_interface_->gripperGetMotionState(gripper_name_)) {
+          if(std::chrono::steady_clock::now() >= deadline) {
+            result = kTimeout;
+            break;
+          }
+          std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        }
+      }
+
+      setResponse(
+        *response, result,
+        result == kSuccess ? (request->wait ? "Gripper motion completed." :
+        "Gripper motion command sent.") : "Gripper motion failed.");
+    } catch(const std::exception & e) {
+      setExceptionResponse(*response, e);
+    }
+  }
+
   void setMotionParamsCallback(
     std::shared_ptr<gas_interfaces::srv::RobotSetMotionParams::Request> request,
     std::shared_ptr<gas_interfaces::srv::RobotSetMotionParams::Response> response)
@@ -566,6 +733,15 @@ private:
   double blend_radius_m_{0.0};
   double duration_s_{0.0};
   double motion_timeout_sec_{120.0};
+  std::string gripper_name_;
+  std::string gripper_model_;
+  std::string gripper_device_name_;
+  bool gripper_auto_connect_{false};
+  bool gripper_auto_enable_{false};
+  double gripper_open_position_m_{0.0};
+  double gripper_closed_position_m_{0.08};
+  double gripper_max_force_n_{40.0};
+  arcs::common_interface::GripperInterfacePtr gripper_interface_;
 
   rclcpp::Service<gas_interfaces::srv::RobotConnect>::SharedPtr connect_srv_;
   rclcpp::Service<gas_interfaces::srv::RobotSetEnable>::SharedPtr enable_srv_;
@@ -575,6 +751,8 @@ private:
   rclcpp::Service<gas_interfaces::srv::RobotStop>::SharedPtr stop_srv_;
   rclcpp::Service<gas_interfaces::srv::RobotSetMotionParams>::SharedPtr set_motion_params_srv_;
   rclcpp::Service<gas_interfaces::srv::RobotSetHandguide>::SharedPtr handguide_srv_;
+  rclcpp::Service<gas_interfaces::srv::GripperActivate>::SharedPtr gripper_activate_srv_;
+  rclcpp::Service<gas_interfaces::srv::GripperMove>::SharedPtr gripper_move_srv_;
 };
 
 int main(int argc, char ** argv)
