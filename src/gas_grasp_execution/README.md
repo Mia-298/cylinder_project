@@ -9,6 +9,7 @@
 | YOLO 服务 | `/yolo/detect_once` |
 | 机器人位姿 | `/robot/get_pose` |
 | 机器人直线运动 | `/robot/move_l` |
+| 夹爪 | HyRMS `GripperProxy::RmCeu`，设备 ID 默认 `griRmc0001` |
 | 手眼状态 | `/handeye/status` |
 | 手眼结果文件 | 最新 `calibration_data/handeye/*/results/handeye_result.yaml` 或 launch 显式传入 |
 
@@ -47,10 +48,11 @@ ros2 service call /grasp/execute_once gas_interfaces/srv/GraspExecute \
   gripper_max_time_ms: 3000, gripper_wait: true}"
 ```
 
-`close_gripper=false` 时行为与原来一致，不调用夹爪。`gripper_position`、
-`gripper_velocity`、`gripper_force` 的范围均为 `0~100`；位置百分比按
-`gas_robot_control/config/aubo_control.yaml` 中的开合位置线性映射。夹爪必须由
-`aubo_robot_control_node` 使用 AUBO SDK 配置并连接，不能启动时让机器人仍在运动。
+`close_gripper=false` 时行为与原来一致，不调用夹爪。夹爪控制现在由本节点
+内部的 `GripperProxy::RmCeu` 完成，必须先启动 HyRMS 下位机并上线对应 linker。
+`gripper_position` 的 `0~100` 会映射到配置的 `gripper_open_point` 到
+`gripper_closed_point`；当前 `RmCeu` 只支持 0 到 15 的预设点位，速度、力和
+超时字段暂不由该 Proxy 接口执行。
 
 字段说明：
 

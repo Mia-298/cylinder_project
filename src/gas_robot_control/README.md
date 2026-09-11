@@ -73,21 +73,33 @@ ros2 service call /robot/get_pose gas_interfaces/srv/RobotGetPose "{}"
 - 抓取前确认目标点在安全工作空间内。
 - `grasp_pipeline.launch.py` 默认会自动连接并使能机器人。
 
-## AUBO SDK 夹爪控制
+## HyRMS Proxy 夹爪控制
 
-夹爪和机械臂现在由同一个 `aubo_robot_control_node` 通过现有 AUBO SDK 控制，
-不需要启动 `cpp_proxy_test_v2.4.0` 或 HyRMS 下位机。首次使用时在
-`config/aubo_control.yaml` 填写 SDK 的 `gripper_model`、`gripper_device_name`，
-并根据实际夹爪行程修改 `gripper_open_position_m`、`gripper_closed_position_m`。
+机械臂由本节点通过 AUBO SDK 控制；夹爪由 `gas_grasp_execution` 内部的
+`GripperProxy::RmCeu` 控制。因此需要先启动 HyRMS 下位机，且下位机需要上线
+配置中的夹爪设备（默认 ID 为 `griRmc0001`）。本节点不再提供夹爪 service，
+夹爪 service 由抓取节点提供。
 
-抓取服务的夹爪控制是可选的，默认不闭合。服务如下：
+夹爪配置位于 `gas_grasp_execution/config/grasp_execution.yaml`：
+
+```yaml
+gripper_proxy_device_id: griRmc0001
+gripper_open_point: 0
+gripper_closed_point: 15
+```
+
+`RmCeu` 接口只提供 0 到 15 的预设点位。项目把 `position: 0..100` 线性映射到
+这 16 个点；`velocity`、`force` 和 `max_time_ms` 为兼容抓取接口保留，但当前
+Proxy 不会把它们传到底层夹爪。
+
+服务如下：
 
 | 服务 | 类型 | 说明 |
 | --- | --- | --- |
-| `/gripper/activate` | `gas_interfaces/srv/GripperActivate` | `activate=true` 使能，`false` 禁用 |
-| `/gripper/move` | `gas_interfaces/srv/GripperMove` | 位置、速度、力均为 0 到 100 百分比 |
+| `/gripper/activate` | `gas_interfaces/srv/GripperActivate` | `true` 连接 Proxy，`false` 断开 |
+| `/gripper/move` | `gas_interfaces/srv/GripperMove` | 位置映射到夹爪预设点 |
 
-示例：
+测试：
 
 ```bash
 ros2 service call /gripper/activate gas_interfaces/srv/GripperActivate \
@@ -95,16 +107,3 @@ ros2 service call /gripper/activate gas_interfaces/srv/GripperActivate \
 ros2 service call /gripper/move gas_interfaces/srv/GripperMove \
   "{gripper_index: 0, position: 30, velocity: 50, force: 50, max_time_ms: 3000, wait: true}"
 ```
-
-`gripper_position` 由 `gripper_open_position_m` 到 `gripper_closed_position_m`
-线性映射，具体 0%/100% 的开合方向由配置决定。抓取时示例：
-
-```bash
-ros2 service call /grasp/execute_once gas_interfaces/srv/GraspExecute \
-  "{wait: true, publish_debug_image: true, approach_offset_m: 0.20, \
-  close_gripper: true, activate_gripper: true, gripper_index: 0, \
-  gripper_position: 70, gripper_velocity: 50, gripper_force: 50, \
-  gripper_max_time_ms: 3000, gripper_wait: true}"
-```
-
-只有 `close_gripper=true` 时才会闭合；它要求 `wait=true`，确保机械臂先到达预抓取位置。

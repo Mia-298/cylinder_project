@@ -8,6 +8,7 @@ int main(int argc, char ** argv)
   auto node = std::make_shared<gas::GraspExecutionNode>();
   rclcpp::executors::MultiThreadedExecutor executor;
   executor.add_node(node);
+  executor.add_node(node->gripperProxyNode());
   executor.spin();
   rclcpp::shutdown();
   return 0;

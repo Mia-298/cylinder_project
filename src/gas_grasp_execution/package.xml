@@ -3,7 +3,7 @@
 <package format="3">
   <name>gas_grasp_execution</name>
   <version>0.0.0</version>
-  <description>One-shot grasp execution node for YOLO detection and AUBO motion.</description>
+  <description>One-shot grasp execution node for YOLO detection, AUBO motion, and HyRMS gripper control.</description>
   <maintainer email="2532547744@qq.com">xiaojinzi</maintainer>
   <license>TODO: License declaration</license>
 

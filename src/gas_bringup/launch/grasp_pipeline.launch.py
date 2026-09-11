@@ -2,7 +2,13 @@ import glob
 import os
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, TimerAction
+from launch.actions import (
+    DeclareLaunchArgument,
+    ExecuteProcess,
+    IncludeLaunchDescription,
+    OpaqueFunction,
+    TimerAction,
+)
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
@@ -22,6 +28,35 @@ def _latest_handeye_result_file():
     if not candidates:
         return ''
     return max(candidates, key=os.path.getmtime)
+
+
+def _execute_once(context):
+    close_gripper = LaunchConfiguration('close_gripper').perform(context).lower() == 'true'
+    activate_gripper = close_gripper
+    request = (
+        '{wait: true, publish_debug_image: true, approach_offset_m: 0.20, '
+        f'close_gripper: {str(close_gripper).lower()}, '
+        f'activate_gripper: {str(activate_gripper).lower()}, '
+        'gripper_index: 0, '
+        f"gripper_position: {LaunchConfiguration('gripper_position').perform(context)}, "
+        f"gripper_velocity: {LaunchConfiguration('gripper_velocity').perform(context)}, "
+        f"gripper_force: {LaunchConfiguration('gripper_force').perform(context)}, "
+        f"gripper_max_time_ms: {LaunchConfiguration('gripper_max_time_ms').perform(context)}, "
+        'gripper_wait: true}'
+    )
+    return [
+        ExecuteProcess(
+            cmd=[
+                'ros2',
+                'service',
+                'call',
+                '/grasp/execute_once',
+                'gas_interfaces/srv/GraspExecute',
+                request,
+            ],
+            output='screen',
+        ),
+    ]
 
 
 def generate_launch_description():
@@ -62,6 +97,31 @@ def generate_launch_description():
             default_value='8.0',
             description='Delay before execute_once service call.',
         ),
+        DeclareLaunchArgument(
+            'close_gripper',
+            default_value='false',
+            description='Close the HyRMS gripper after reaching the pre-grasp point.',
+        ),
+        DeclareLaunchArgument(
+            'gripper_position',
+            default_value='70',
+            description='Gripper position percentage mapped to an RmCeu preset point.',
+        ),
+        DeclareLaunchArgument(
+            'gripper_velocity',
+            default_value='30',
+            description='Compatibility field; RmCeu Proxy does not use velocity.',
+        ),
+        DeclareLaunchArgument(
+            'gripper_force',
+            default_value='30',
+            description='Compatibility field; RmCeu Proxy does not use force.',
+        ),
+        DeclareLaunchArgument(
+            'gripper_max_time_ms',
+            default_value='3000',
+            description='Compatibility field; RmCeu goPoint is blocking.',
+        ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(perception_launch),
             launch_arguments={
@@ -91,19 +151,7 @@ def generate_launch_description():
         ),
         TimerAction(
             period=LaunchConfiguration('execute_delay_sec'),
-            actions=[
-                ExecuteProcess(
-                    cmd=[
-                        'ros2',
-                        'service',
-                        'call',
-                        '/grasp/execute_once',
-                        'gas_interfaces/srv/GraspExecute',
-                        '{wait: true, publish_debug_image: true, approach_offset_m: 0.20}',
-                    ],
-                    output='screen',
-                ),
-            ],
+            actions=[OpaqueFunction(function=_execute_once)],
             condition=IfCondition(LaunchConfiguration('execute_once')),
         ),
     ])

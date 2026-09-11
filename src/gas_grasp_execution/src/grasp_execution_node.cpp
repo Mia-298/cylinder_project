@@ -95,7 +95,6 @@ GraspExecutionNode::GraspExecutionNode()
   move_timeout_ms_ = declare_parameter<int>("move_timeout_ms", 30000);
   redetection_wait_timeout_ms_ =
     declare_parameter<int>("redetection_wait_timeout_ms", 5000);
-  gripper_service_timeout_ms_ = declare_parameter<int>("gripper_service_timeout_ms", 10000);
 
   if (default_approach_offset_m_ <= 0.0) {
     default_approach_offset_m_ = 0.20;
@@ -121,9 +120,6 @@ GraspExecutionNode::GraspExecutionNode()
   if (redetection_wait_timeout_ms_ <= 0) {
     redetection_wait_timeout_ms_ = 5000;
   }
-  if (gripper_service_timeout_ms_ <= 0) {
-    gripper_service_timeout_ms_ = 10000;
-  }
 
   service_group_ = create_callback_group(rclcpp::CallbackGroupType::Reentrant);
   client_group_ = create_callback_group(rclcpp::CallbackGroupType::Reentrant);
@@ -140,19 +136,36 @@ GraspExecutionNode::GraspExecutionNode()
     robot_move_l_service_,
     rmw_qos_profile_services_default,
     client_group_);
-  gripper_activate_client_ = create_client<gas_interfaces::srv::GripperActivate>(
-    gripper_activate_service_,
-    rmw_qos_profile_services_default,
-    client_group_);
-  gripper_move_client_ = create_client<gas_interfaces::srv::GripperMove>(
-    gripper_move_service_,
-    rmw_qos_profile_services_default,
-    client_group_);
+  gripper_proxy_device_id_ =
+    declare_parameter<std::string>("gripper_proxy_device_id", "griRmc0001");
+  gripper_open_point_ = declare_parameter<int>("gripper_open_point", 0);
+  gripper_closed_point_ = declare_parameter<int>("gripper_closed_point", 15);
+  gripper_open_point_ = std::clamp(gripper_open_point_, 0, 15);
+  gripper_closed_point_ = std::clamp(gripper_closed_point_, 0, 15);
+  if (gripper_proxy_device_id_.empty()) {
+    gripper_proxy_device_id_ = "griRmc0001";
+  }
+  gripper_proxy_ = std::make_shared<GripperProxy::RmCeu>(
+    gripper_proxy_device_id_ + "_proxy");
 
   execute_srv_ = create_service<gas_interfaces::srv::GraspExecute>(
     execute_service_name_,
     std::bind(
       &GraspExecutionNode::executeCallback, this,
+      std::placeholders::_1, std::placeholders::_2),
+    rmw_qos_profile_services_default,
+    service_group_);
+  gripper_activate_srv_ = create_service<gas_interfaces::srv::GripperActivate>(
+    gripper_activate_service_,
+    std::bind(
+      &GraspExecutionNode::gripperActivateCallback, this,
+      std::placeholders::_1, std::placeholders::_2),
+    rmw_qos_profile_services_default,
+    service_group_);
+  gripper_move_srv_ = create_service<gas_interfaces::srv::GripperMove>(
+    gripper_move_service_,
+    std::bind(
+      &GraspExecutionNode::gripperMoveCallback, this,
       std::placeholders::_1, std::placeholders::_2),
     rmw_qos_profile_services_default,
     service_group_);
@@ -163,6 +176,9 @@ GraspExecutionNode::GraspExecutionNode()
   RCLCPP_INFO(get_logger(), "robot move_l service: %s", robot_move_l_service_.c_str());
   RCLCPP_INFO(get_logger(), "gripper activate service: %s", gripper_activate_service_.c_str());
   RCLCPP_INFO(get_logger(), "gripper move service: %s", gripper_move_service_.c_str());
+  RCLCPP_INFO(
+    get_logger(), "HyRMS gripper proxy: device_id=%s open_point=%d closed_point=%d",
+    gripper_proxy_device_id_.c_str(), gripper_open_point_, gripper_closed_point_);
   RCLCPP_INFO(
     get_logger(),
     "default horizontal standoff: %.3f m",
@@ -622,19 +638,28 @@ bool GraspExecutionNode::requestMoveL(
 bool GraspExecutionNode::requestGripperActivation(
   int gripper_index, bool activate, std::string & error_message)
 {
-  auto request = std::make_shared<gas_interfaces::srv::GripperActivate::Request>();
-  request->gripper_index = gripper_index;
-  request->activate = activate;
-  auto response = callServiceSync<gas_interfaces::srv::GripperActivate>(
-    gripper_activate_client_, request,
-    std::chrono::milliseconds(gripper_service_timeout_ms_), error_message);
-  if (!response) {
+  if (gripper_index != 0) {
+    error_message = "Only gripper_index=0 is supported by the RmCeu Proxy.";
     return false;
   }
-  if (!response->success) {
-    error_message = response->message;
+
+  std::lock_guard<std::mutex> lock(gripper_mutex_);
+  if (activate) {
+    if (ensureGripperConnectedLocked(error_message)) {
+      return true;
+    }
     return false;
   }
+
+  if (!gripper_connected_) {
+    return true;
+  }
+  const int result = gripper_proxy_->disconnect();
+  if (result != 0) {
+    error_message = "HyRMS gripper disconnect failed: " + std::to_string(result);
+    return false;
+  }
+  gripper_connected_ = false;
   return true;
 }
 
@@ -647,24 +672,85 @@ bool GraspExecutionNode::requestGripperMove(
   bool wait,
   std::string & error_message)
 {
-  auto request = std::make_shared<gas_interfaces::srv::GripperMove::Request>();
-  request->gripper_index = gripper_index;
-  request->position = position;
-  request->velocity = velocity;
-  request->force = force;
-  request->max_time_ms = max_time_ms;
-  request->wait = wait;
-  auto response = callServiceSync<gas_interfaces::srv::GripperMove>(
-    gripper_move_client_, request,
-    std::chrono::milliseconds(gripper_service_timeout_ms_), error_message);
-  if (!response) {
+  (void)velocity;
+  (void)force;
+  (void)max_time_ms;
+  (void)wait;
+  if (gripper_index != 0 || position < 0 || position > 100) {
+    error_message =
+      "RmCeu Proxy requires gripper_index=0 and position in [0,100].";
     return false;
   }
-  if (!response->success) {
-    error_message = response->message;
+
+  std::lock_guard<std::mutex> lock(gripper_mutex_);
+  if (!ensureGripperConnectedLocked(error_message)) {
+    return false;
+  }
+
+  const double ratio = static_cast<double>(position) / 100.0;
+  const int point = static_cast<int>(std::lround(
+    static_cast<double>(gripper_open_point_) +
+    ratio * static_cast<double>(gripper_closed_point_ - gripper_open_point_)));
+  const int result = gripper_proxy_->goPoint(std::clamp(point, 0, 15));
+  if (result != 0) {
+    error_message = "HyRMS gripper goPoint failed: " + std::to_string(result);
+    if (!gripper_proxy_->msg.empty()) {
+      error_message += " (" + gripper_proxy_->msg + ")";
+    }
     return false;
   }
   return true;
+}
+
+std::shared_ptr<GripperProxy::RmCeu> GraspExecutionNode::gripperProxyNode() const
+{
+  return gripper_proxy_;
+}
+
+bool GraspExecutionNode::ensureGripperConnectedLocked(std::string & error_message)
+{
+  if (gripper_connected_) {
+    return true;
+  }
+  const int result = gripper_proxy_->connect();
+  if (result != 0) {
+    error_message = "HyRMS gripper connect failed: " + std::to_string(result);
+    if (!gripper_proxy_->msg.empty()) {
+      error_message += " (" + gripper_proxy_->msg + ")";
+    }
+    return false;
+  }
+  gripper_connected_ = true;
+  return true;
+}
+
+void GraspExecutionNode::gripperActivateCallback(
+  const std::shared_ptr<gas_interfaces::srv::GripperActivate::Request> request,
+  std::shared_ptr<gas_interfaces::srv::GripperActivate::Response> response)
+{
+  std::string error_message;
+  const bool success = requestGripperActivation(
+    request->gripper_index, request->activate, error_message);
+  response->success = success;
+  response->error_code = success ? kSuccess : kGripperFailed;
+  response->message = success
+    ? (request->activate ? "HyRMS gripper connected." : "HyRMS gripper disconnected.")
+    : error_message;
+}
+
+void GraspExecutionNode::gripperMoveCallback(
+  const std::shared_ptr<gas_interfaces::srv::GripperMove::Request> request,
+  std::shared_ptr<gas_interfaces::srv::GripperMove::Response> response)
+{
+  std::string error_message;
+  const bool success = requestGripperMove(
+    request->gripper_index, request->position, request->velocity, request->force,
+    request->max_time_ms, request->wait, error_message);
+  response->success = success;
+  response->error_code = success ? kSuccess : kGripperFailed;
+  response->message = success
+    ? "HyRMS gripper point command completed."
+    : error_message;
 }
 
 cv::Mat GraspExecutionNode::rpyToRotationMatrix(double rx, double ry, double rz)

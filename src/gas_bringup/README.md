@@ -88,4 +88,6 @@ ros2 service list | grep -E "yolo|grasp|handeye|robot"
 
 - `perception.launch.py` 会覆盖 YOLO 的 `point_cloud_topic` 为 `/camera/depth/color/points`。
 - `grasp_pipeline.launch.py` 默认自动连接并使能 AUBO。
+- 夹爪由 `gas_grasp_execution` 内置的 HyRMS `GripperProxy::RmCeu` 控制，运行抓取流程前需要先启动下位机并上线 `griRmc0001`。
+- 需要启动后自动执行一次并闭合夹爪时，增加 `execute_once:=true close_gripper:=true`；位置可用 `gripper_position:=0..100` 调整。
 - 手眼采集入口为了稳定采样，只启动彩色相机，不启用深度和点云。
