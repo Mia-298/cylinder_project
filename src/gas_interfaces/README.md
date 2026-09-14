@@ -30,6 +30,12 @@ bool publish_debug_image
 bool success
 string message
 vision_msgs/Detection2DArray detections
+float64 best_offset_x_px
+float64 best_offset_y_px
+float64 best_width_px
+float64 best_height_px
+bool has_alignment_offset_tool
+float64[3] alignment_offset_tool_m
 bool has_sphere_center
 float64[3] sphere_center_m
 float64 sphere_radius_m
@@ -38,7 +44,9 @@ string sphere_class_id
 float64 sphere_confidence
 ```
 
-`detections` 保留二维框和置信度，抓取节点实际只使用 `has_sphere_center=true` 时的 `sphere_center_m`。
+`detections` 保留二维框和置信度。`has_alignment_offset_tool=true` 时，
+`alignment_offset_tool_m` 表示末端在当前 Tool 坐标系下，为把二维框中心移到图像中心而建议执行的平移量。抓取节点只在第一次
+`has_sphere_center=false` 且该偏移有效时使用一次，随后等待新结果再判断球心。
 
 ## 抓取接口
 
@@ -96,4 +104,4 @@ ros2 interface show gas_interfaces/srv/RobotGetPose
 
 ## 修改接口后的注意事项
 
-如果改动 `.srv`，所有依赖接口的包都需要重新构建并重新 `source install/setup.bash`。当前请求只重写 README，没有修改任何接口文件。
+修改 `.srv` 后，需要重新构建 `gas_interfaces` 以及所有使用该接口的依赖包，并重新 `source install/setup.bash`。

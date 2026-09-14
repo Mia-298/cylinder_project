@@ -9,6 +9,9 @@ float64 best_offset_y_px                # 检测框中心相对图像中心的�
 float64 best_width_px                   # 最佳检测框宽度，单位 pixel。
 float64 best_height_px                  # 最佳检测框高度，单位 pixel。
 
+bool has_alignment_offset_tool          # 是否能根据二维框和点云计算末端对准平移量。
+float64[3] alignment_offset_tool_m      # 将二维框中心移向图像中心时，末端在 Tool 坐标系下应平移的量，单位 m。
+
 bool has_sphere_center                  # 是否存在有效的点云球面拟合结果。
 float64[3] sphere_center_m              # 球心在相机坐标系下的三维坐标。
 float64 sphere_radius_m                 # 点云球面拟合得到的球半径。

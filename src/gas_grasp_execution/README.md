@@ -89,14 +89,16 @@ ros2 service call /grasp/execute_once gas_interfaces/srv/GraspExecute \
 
 ## 重要限制
 
-当前版本只消费点云拟合出的三维球心：
+正常情况下，流程消费点云拟合出的三维球心：
 
 ```text
 has_sphere_center=true
 sphere_center_m=[x, y, z]
 ```
 
-如果 YOLO 只有二维框，没有合格球心，服务直接返回 `-2003`。不会使用二维框中心加深度图回退。
+如果第一次检测只有二维框而没有合格球心，流程会根据二维框中心附近的有效点云计算一次小范围对准平移，等待新图像结果后重新检测一次。第二次仍没有合格球心时返回 `-2003`。没有有效二维框、点云或手眼变换时不会执行对准移动。
+
+对准平移受 `max_alignment_move_m` 限制，默认最大为 `0.05 m`；二次检测最多等待 `redetection_wait_timeout_ms`，默认 `5000 ms`。该补偿流程要求请求中的 `wait=true`，以确保第一次对准运动完成后才重新检测。
 
 ## 错误码
 

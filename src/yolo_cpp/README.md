@@ -42,6 +42,8 @@ gas_interfaces/srv/DetectObjects
 - `sphere_center_m`：相机坐标系下三维球心，单位 m。
 - `sphere_radius_m`：拟合球半径，单位 m。
 - `sphere_frame_id`：点云坐标系。
+- `has_alignment_offset_tool`：是否能根据二维框中心附近的点云和手眼结果计算对准平移量。
+- `alignment_offset_tool_m`：将二维框中心移向图像中心时，末端在 Tool 坐标系下的建议平移量，单位 m。
 
 ## 启动
 

@@ -2,6 +2,7 @@
 
 #include <array>
 #include <chrono>
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -29,6 +30,7 @@ private:
 
   bool requestYoloDetection(
     bool publish_debug_image,
+    std::int64_t min_result_stamp_ns,
     bool & has_sphere_center,
     std::array<double, 3> & sphere_center_m,
     double & sphere_radius_m,
@@ -38,6 +40,9 @@ private:
     bool & has_sphere_center_tool,
     std::array<double, 3> & sphere_center_tool_m,
     std::string & sphere_tool_frame_id,
+    bool & has_alignment_offset_tool,
+    std::array<double, 3> & alignment_offset_tool_m,
+    std::int64_t & result_stamp_ns,
     std::string & error_message);
 
   bool requestRobotPose(
@@ -88,8 +93,10 @@ private:
   double min_valid_depth_m_{0.05};
   double max_valid_depth_m_{5.0};
   double min_horizontal_direction_m_{1e-4};
+  double max_alignment_move_m_{0.05};
   int service_timeout_ms_{3000};
   int move_timeout_ms_{30000};
+  int redetection_wait_timeout_ms_{5000};
   int gripper_service_timeout_ms_{10000};
 };
 

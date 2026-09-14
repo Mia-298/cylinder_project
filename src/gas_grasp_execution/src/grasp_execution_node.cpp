@@ -89,8 +89,12 @@ GraspExecutionNode::GraspExecutionNode()
   max_valid_depth_m_ = declare_parameter<double>("max_valid_depth_m", 5.0);
   min_horizontal_direction_m_ =
     declare_parameter<double>("min_horizontal_direction_m", 1e-4);
+  max_alignment_move_m_ =
+    declare_parameter<double>("max_alignment_move_m", 0.05);
   service_timeout_ms_ = declare_parameter<int>("service_timeout_ms", 3000);
   move_timeout_ms_ = declare_parameter<int>("move_timeout_ms", 30000);
+  redetection_wait_timeout_ms_ =
+    declare_parameter<int>("redetection_wait_timeout_ms", 5000);
   gripper_service_timeout_ms_ = declare_parameter<int>("gripper_service_timeout_ms", 10000);
 
   if (default_approach_offset_m_ <= 0.0) {
@@ -105,11 +109,17 @@ GraspExecutionNode::GraspExecutionNode()
   if (min_horizontal_direction_m_ <= 0.0) {
     min_horizontal_direction_m_ = 1e-4;
   }
+  if (max_alignment_move_m_ <= 0.0) {
+    max_alignment_move_m_ = 0.05;
+  }
   if (service_timeout_ms_ <= 0) {
     service_timeout_ms_ = 3000;
   }
   if (move_timeout_ms_ <= 0) {
     move_timeout_ms_ = 30000;
+  }
+  if (redetection_wait_timeout_ms_ <= 0) {
+    redetection_wait_timeout_ms_ = 5000;
   }
   if (gripper_service_timeout_ms_ <= 0) {
     gripper_service_timeout_ms_ = 10000;
@@ -203,10 +213,14 @@ void GraspExecutionNode::executeCallback(
     bool has_sphere_center_tool = false;
     std::array<double, 3> sphere_center_tool_m{};
     std::string sphere_tool_frame_id;
+    bool has_alignment_offset_tool = false;
+    std::array<double, 3> alignment_offset_tool_m{};
+    std::int64_t result_stamp_ns = -1;
 
     std::string yolo_error;
     if (!requestYoloDetection(
           request->publish_debug_image,
+          -1,
           has_sphere_center,
           sphere_center_m,
           sphere_radius_m,
@@ -216,6 +230,9 @@ void GraspExecutionNode::executeCallback(
           has_sphere_center_tool,
           sphere_center_tool_m,
           sphere_tool_frame_id,
+          has_alignment_offset_tool,
+          alignment_offset_tool_m,
+          result_stamp_ns,
           yolo_error))
     {
       response->error_code = kNoDetection;
@@ -224,9 +241,94 @@ void GraspExecutionNode::executeCallback(
     }
 
     if (!has_sphere_center || !finitePoint3(sphere_center_m)) {
-      response->error_code = kNoDetection;
-      response->message = "YOLO did not return a valid fitted 3D sphere center in camera frame";
-      return;
+      if (!has_alignment_offset_tool) {
+        response->error_code = kNoDetection;
+        response->message =
+          "YOLO did not return a valid sphere center or a usable alignment offset";
+        return;
+      }
+      if (!request->wait) {
+        response->error_code = kNoDetection;
+        response->message =
+          "sphere fit failed; alignment retry requires wait=true";
+        return;
+      }
+
+      std::array<double, 6> alignment_pose{};
+      cv::Mat T_base_tool;
+      std::string robot_error;
+      if (!requestRobotPose(alignment_pose, T_base_tool, robot_error)) {
+        response->error_code = kNoRobotPose;
+        response->message = robot_error;
+        return;
+      }
+
+      double alignment_norm = std::sqrt(
+        alignment_offset_tool_m[0] * alignment_offset_tool_m[0] +
+        alignment_offset_tool_m[1] * alignment_offset_tool_m[1] +
+        alignment_offset_tool_m[2] * alignment_offset_tool_m[2]);
+      if (!std::isfinite(alignment_norm) || alignment_norm <= 1e-6) {
+        response->error_code = kNoDetection;
+        response->message = "sphere fit failed; calculated alignment move is invalid";
+        return;
+      }
+      if (alignment_norm > max_alignment_move_m_) {
+        const double scale = max_alignment_move_m_ / alignment_norm;
+        for (double & value : alignment_offset_tool_m) {
+          value *= scale;
+        }
+        alignment_norm = max_alignment_move_m_;
+      }
+
+      const cv::Mat delta_tool = (cv::Mat_<double>(3, 1) <<
+        alignment_offset_tool_m[0],
+        alignment_offset_tool_m[1],
+        alignment_offset_tool_m[2]);
+      const cv::Mat delta_base =
+        T_base_tool(cv::Range(0, 3), cv::Range(0, 3)) * delta_tool;
+      for (int index = 0; index < 3; ++index) {
+        alignment_pose[static_cast<std::size_t>(index)] +=
+          delta_base.at<double>(index, 0);
+      }
+
+      RCLCPP_WARN(
+        get_logger(),
+        "Sphere fit failed; aligning to YOLO box center with MoveL delta %.4f m",
+        alignment_norm);
+      std::string move_error;
+      if (!requestMoveL(alignment_pose, true, move_error)) {
+        response->error_code = kMoveFailed;
+        response->message = move_error;
+        return;
+      }
+
+      if (!requestYoloDetection(
+          request->publish_debug_image,
+          result_stamp_ns,
+          has_sphere_center,
+          sphere_center_m,
+          sphere_radius_m,
+          sphere_frame_id,
+          sphere_class_id,
+          sphere_confidence,
+          has_sphere_center_tool,
+          sphere_center_tool_m,
+          sphere_tool_frame_id,
+          has_alignment_offset_tool,
+          alignment_offset_tool_m,
+          result_stamp_ns,
+          yolo_error))
+      {
+        response->error_code = kNoDetection;
+        response->message = yolo_error;
+        return;
+      }
+      if (!has_sphere_center || !finitePoint3(sphere_center_m)) {
+        response->error_code = kNoDetection;
+        response->message =
+          "YOLO sphere fit is still invalid after one alignment retry";
+        return;
+      }
     }
 
     const double depth_m = sphere_center_m[2];
@@ -390,6 +492,7 @@ void GraspExecutionNode::executeCallback(
 
 bool GraspExecutionNode::requestYoloDetection(
   bool publish_debug_image,
+  std::int64_t min_result_stamp_ns,
   bool & has_sphere_center,
   std::array<double, 3> & sphere_center_m,
   double & sphere_radius_m,
@@ -399,6 +502,9 @@ bool GraspExecutionNode::requestYoloDetection(
   bool & has_sphere_center_tool,
   std::array<double, 3> & sphere_center_tool_m,
   std::string & sphere_tool_frame_id,
+  bool & has_alignment_offset_tool,
+  std::array<double, 3> & alignment_offset_tool_m,
+  std::int64_t & result_stamp_ns,
   std::string & error_message)
 {
   has_sphere_center = false;
@@ -411,30 +517,53 @@ bool GraspExecutionNode::requestYoloDetection(
   has_sphere_center_tool = false;
   sphere_center_tool_m.fill(std::numeric_limits<double>::quiet_NaN());
   sphere_tool_frame_id.clear();
+  has_alignment_offset_tool = false;
+  alignment_offset_tool_m.fill(std::numeric_limits<double>::quiet_NaN());
+  result_stamp_ns = -1;
 
-  auto request = std::make_shared<gas_interfaces::srv::DetectObjects::Request>();
-  request->publish_debug_image = publish_debug_image;
-  auto response = callServiceSync<gas_interfaces::srv::DetectObjects>(
-    yolo_client_, request, std::chrono::milliseconds(service_timeout_ms_), error_message);
-  if (!response) {
-    return false;
+  const auto deadline = std::chrono::steady_clock::now() +
+    std::chrono::milliseconds(redetection_wait_timeout_ms_);
+  while (rclcpp::ok()) {
+    auto request = std::make_shared<gas_interfaces::srv::DetectObjects::Request>();
+    request->publish_debug_image = publish_debug_image;
+    auto response = callServiceSync<gas_interfaces::srv::DetectObjects>(
+      yolo_client_, request, std::chrono::milliseconds(service_timeout_ms_), error_message);
+    if (!response) {
+      return false;
+    }
+    if (!response->success) {
+      error_message = response->message;
+      return false;
+    }
+
+    result_stamp_ns =
+      static_cast<std::int64_t>(response->detections.header.stamp.sec) * 1000000000LL +
+      static_cast<std::int64_t>(response->detections.header.stamp.nanosec);
+    if (min_result_stamp_ns < 0 || result_stamp_ns > min_result_stamp_ns) {
+      has_sphere_center = response->has_sphere_center;
+      sphere_center_m = response->sphere_center_m;
+      sphere_radius_m = response->sphere_radius_m;
+      sphere_frame_id = response->sphere_frame_id;
+      sphere_class_id = response->sphere_class_id;
+      sphere_confidence = response->sphere_confidence;
+
+      has_sphere_center_tool = response->has_sphere_center_tool;
+      sphere_center_tool_m = response->sphere_center_tool_m;
+      sphere_tool_frame_id = response->sphere_tool_frame_id;
+      has_alignment_offset_tool = response->has_alignment_offset_tool;
+      alignment_offset_tool_m = response->alignment_offset_tool_m;
+      return true;
+    }
+
+    if (std::chrono::steady_clock::now() >= deadline) {
+      error_message = "timed out waiting for a new YOLO detection snapshot";
+      return false;
+    }
+    std::this_thread::sleep_for(20ms);
   }
-  if (!response->success) {
-    error_message = response->message;
-    return false;
-  }
 
-  has_sphere_center = response->has_sphere_center;
-  sphere_center_m = response->sphere_center_m;
-  sphere_radius_m = response->sphere_radius_m;
-  sphere_frame_id = response->sphere_frame_id;
-  sphere_class_id = response->sphere_class_id;
-  sphere_confidence = response->sphere_confidence;
-
-  has_sphere_center_tool = response->has_sphere_center_tool;
-  sphere_center_tool_m = response->sphere_center_tool_m;
-  sphere_tool_frame_id = response->sphere_tool_frame_id;
-  return true;
+  error_message = "ROS 2 is shutting down while waiting for YOLO detection";
+  return false;
 }
 
 bool GraspExecutionNode::requestRobotPose(
