@@ -1,41 +1,52 @@
-# ROS2 colcon 编译目录
-build/
-install/
-log/
+# =========================
+# ROS2 workspace 编译目录
+# 只忽略仓库根目录
+# =========================
+/build/
+/install/
+/log/
 
-# 各种缓存、临时文件
+# =========================
+# 缓存、临时文件
+# =========================
 *.log
 *.swp
 *~
 .DS_Store
+
 __pycache__/
 *.pyc
 
+# =========================
 # CMake 中间文件
+# =========================
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
-Makefile
 
-# 仿真产生的临时文件
-*.model
-*.tmp
-
-# VSCode 配置（可选，按需保留）
+# =========================
+# IDE 配置
+# =========================
 .vscode/
-output/
+
+# =========================
+# 程序输出
+# =========================
+/output/
 **/output/
+
 *.jpg.bak
-build/
-install/
-log/
-output/
-**/output/
 
-
-
-
-
-
+# =========================
+# 手眼标定临时采样数据
+# =========================
 calibration_data/handeye/*/samples/
 calibration_data/handeye/*/debug/
+
+
+# =========================
+# HyRMS Proxy SDK
+# 必须随仓库完整保存
+# =========================
+!/src/third_party/cpp_proxy_test_v2.4.0/
+!/src/third_party/cpp_proxy_test_v2.4.0/**

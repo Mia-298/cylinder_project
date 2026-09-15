@@ -1,0 +1,22 @@
+---
+#https://clang.llvm.org/docs/ClangFormatStyleOptions.html
+BasedOnStyle: Microsoft
+Language: Cpp
+
+UseTab: Never
+IndentWidth: 4
+TabWidth: 4
+ColumnLimit: 0
+AccessModifierOffset: -4
+NamespaceIndentation: All
+FixNamespaceComments: false
+BreakBeforeBraces: Allman
+
+AllowShortIfStatementsOnASingleLine: true  # 短 if 语句允许写成单行
+AllowShortLoopsOnASingleLine: true         # 短 for/while 循环允许单行
+AllowShortBlocksOnASingleLine: true        # 短代码块允许单行
+
+SortIncludes: false         # 保持 include 顺序，不自动排序
+IncludeBlocks: Preserve     # 保留 include 块，不合并/拆分
+# AlignConsecutiveMacros: Consecutive  # 同一块宏定义值对齐
+AllowShortFunctionsOnASingleLine: All

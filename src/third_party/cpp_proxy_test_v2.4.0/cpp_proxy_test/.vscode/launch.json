@@ -1,0 +1,26 @@
+{
+    "configurations": [
+        {
+            "name": "ros2 Debugger",
+            "request": "launch",
+            "type": "cppdbg",
+            "miDebuggerServerAddress": "localhost:3000",
+            "cwd": "/",
+            "program": "${workspaceFolder}/build/hyrms/hyrms",
+            "stopAtEntry": true,
+            "externalConsole": true,
+            "setupCommands": [
+                {
+                    "description": "为 gdb 启用整齐打印",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "忽略 SIGINT 防止 Ctrl+C 卡住调试",
+                    "text": "handle SIGINT noprint nostop pass",
+                    "ignoreFailures": true
+                }
+            ]
+        }
+    ]
+}
