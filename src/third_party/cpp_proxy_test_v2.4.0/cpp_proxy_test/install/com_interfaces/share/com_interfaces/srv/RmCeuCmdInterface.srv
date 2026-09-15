@@ -1,9 +1,0 @@
-int32 id # 指令ID
-
-int32 point # 点位编号
-
----
-
-int32 err_code # 错误码
-
-string msg

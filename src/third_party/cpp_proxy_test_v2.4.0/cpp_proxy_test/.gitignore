@@ -3,7 +3,7 @@ src/hyrms_export
 hyrms_export/
 src/com_interfaces/
 build/
-
+install/
 log/
 Log/
 *.tar.gz
