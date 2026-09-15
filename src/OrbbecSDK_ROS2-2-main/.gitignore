@@ -20,6 +20,9 @@ debian/
 
 # Compiled Dynamic libraries
 *.so
+
+# Orbbec SDK shared libraries are vendored dependencies
+!orbbec_camera/SDK/lib/**/*.so
 *.dylib
 *.dll
 
