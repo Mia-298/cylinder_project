@@ -29,6 +29,11 @@ struct LocatedDetection
     Detection detection;
     SphereFitResult sphere;
     //   包含球心等结果
+    bool has_alignment_offset_tool{false};
+    std::array<double, 3> alignment_offset_tool_m{
+      std::numeric_limits<double>::quiet_NaN(),
+      std::numeric_limits<double>::quiet_NaN(),
+      std::numeric_limits<double>::quiet_NaN()};
 };
 
 struct DetectionSnapshot
@@ -135,6 +140,14 @@ private:
       double y_camera,
       double z_camera,
       std::array<double, 3> & point_tool_m) const;
+    bool estimateDetectionCenterCamera(
+      const pcl::PointCloud<pcl::PointXYZ>::ConstPtr & cloud,
+      const cv::Point2f & image_point,
+      const cv::Size & image_size,
+      std::array<double, 3> & point_camera_m) const;
+    bool computeAlignmentOffsetTool(
+      const std::array<double, 3> & point_camera_m,
+      std::array<double, 3> & offset_tool_m) const;
     static bool matrixIsValidHomogeneous(const cv::Mat & T);
     static cv::Mat invertHomogeneousMatrix(const cv::Mat & T);
 

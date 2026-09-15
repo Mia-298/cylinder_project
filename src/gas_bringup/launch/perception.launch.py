@@ -16,7 +16,7 @@ def _latest_handeye_result_file():
         'handeye',
         '*',
         'results',
-        'handeye_result.yaml',
+        'orbbec_orange_handeye_result.yaml',
     )
     candidates = glob.glob(pattern)
     if not candidates:
@@ -33,7 +33,7 @@ def generate_launch_description():
     default_camera_config = PathJoinSubstitution([
         FindPackageShare('gas_bringup'),
         'config',
-        'realsense_camera.yaml',
+        'orbbec_gemini_330.yaml',
     ])
     default_yolo_model_path = PathJoinSubstitution([
         FindPackageShare('yolo_cpp'),
@@ -45,7 +45,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'use_camera',
             default_value='true',
-            description='Start the RealSense camera driver.',
+            description='Start the Orbbec Gemini 330 camera driver.',
         ),
         DeclareLaunchArgument(
             'use_yolo',
@@ -55,7 +55,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'camera_config',
             default_value=default_camera_config,
-            description='YAML file passed to the RealSense camera driver.',
+            description='YAML file passed to the Orbbec Gemini 330 driver.',
         ),
         DeclareLaunchArgument(
             'model_path',
@@ -69,7 +69,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'point_cloud_topic',
-            default_value='/camera/depth/color/points',
+            default_value='/camera/depth_registered/points',
             description='Input point cloud topic for yolo_cpp sphere fitting.',
         ),
         DeclareLaunchArgument(

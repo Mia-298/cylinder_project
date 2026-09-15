@@ -9,49 +9,49 @@ def generate_launch_description():
     default_config = PathJoinSubstitution([
         FindPackageShare('gas_bringup'),
         'config',
-        'realsense_camera.yaml',
+        'orbbec_gemini_330.yaml',
     ])
-    realsense_launch = PathJoinSubstitution([
-        FindPackageShare('realsense2_camera'),
+    orbbec_launch = PathJoinSubstitution([
+        FindPackageShare('orbbec_camera'),
         'launch',
-        'rs_launch.py',
+        'gemini_330_series.launch.py',
     ])
 
     return LaunchDescription([
         DeclareLaunchArgument(
             'camera_config',
             default_value=default_config,
-            description='YAML file passed to the RealSense camera driver.',
+            description='YAML file passed to the Orbbec Gemini 330 driver.',
         ),
         DeclareLaunchArgument(
             'camera_name',
             default_value='camera',
-            description='RealSense node name.',
+            description='Orbbec camera namespace and node name.',
         ),
         DeclareLaunchArgument(
             'camera_namespace',
             default_value='',
-            description='RealSense node namespace. Leave empty to keep /camera/... topics.',
+            description='Compatibility namespace argument; camera_name controls the namespace.',
         ),
         DeclareLaunchArgument(
             'serial_no',
             default_value='',
-            description='Choose a RealSense device by serial number.',
+            description='Choose an Orbbec device by serial number.',
         ),
         DeclareLaunchArgument(
             'usb_port_id',
             default_value='',
-            description='Choose a RealSense device by USB port id.',
+            description='Choose an Orbbec device by USB port id.',
         ),
         DeclareLaunchArgument(
             'device_type',
             default_value='',
-            description='Choose a RealSense device by type.',
+            description='Orbbec device type selector.',
         ),
         DeclareLaunchArgument(
             'json_file_path',
             default_value='',
-            description='Optional advanced RealSense configuration JSON file.',
+            description='Optional Orbbec SDK configuration JSON file.',
         ),
         DeclareLaunchArgument(
             'initial_reset',
@@ -69,18 +69,15 @@ def generate_launch_description():
             description='Node output destination.',
         ),
         IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(realsense_launch),
+            PythonLaunchDescriptionSource(orbbec_launch),
             launch_arguments={
-                'config_file': LaunchConfiguration('camera_config'),
+                'config_file_path': LaunchConfiguration('camera_config'),
                 'camera_name': LaunchConfiguration('camera_name'),
-                'camera_namespace': LaunchConfiguration('camera_namespace'),
-                'serial_no': LaunchConfiguration('serial_no'),
-                'usb_port_id': LaunchConfiguration('usb_port_id'),
+                'serial_number': LaunchConfiguration('serial_no'),
+                'usb_port': LaunchConfiguration('usb_port_id'),
                 'device_type': LaunchConfiguration('device_type'),
-                'json_file_path': LaunchConfiguration('json_file_path'),
-                'initial_reset': LaunchConfiguration('initial_reset'),
+                'load_config_json_file_path': LaunchConfiguration('json_file_path'),
                 'log_level': LaunchConfiguration('log_level'),
-                'output': LaunchConfiguration('output'),
             }.items(),
         ),
     ])

@@ -72,3 +72,38 @@ ros2 service call /robot/get_pose gas_interfaces/srv/RobotGetPose "{}"
 - 确认 PC 和机器人在同一网段。
 - 抓取前确认目标点在安全工作空间内。
 - `grasp_pipeline.launch.py` 默认会自动连接并使能机器人。
+
+## HyRMS Proxy 夹爪控制
+
+机械臂由本节点通过 AUBO SDK 控制；夹爪由 `gas_grasp_execution` 内部的
+`GripperProxy::RmCeu` 控制。因此需要先启动 HyRMS 下位机，且下位机需要上线
+配置中的夹爪设备（默认 ID 为 `griRmc0001`）。本节点不再提供夹爪 service，
+夹爪 service 由抓取节点提供。
+
+夹爪配置位于 `gas_grasp_execution/config/grasp_execution.yaml`：
+
+```yaml
+gripper_proxy_device_id: griRmc0001
+gripper_open_point: 0
+gripper_closed_point: 15
+```
+
+`RmCeu` 接口只提供 0 到 15 的预设点位。项目把 `position: 0..100` 线性映射到
+这 16 个点；`velocity`、`force` 和 `max_time_ms` 为兼容抓取接口保留，但当前
+Proxy 不会把它们传到底层夹爪。
+
+服务如下：
+
+| 服务 | 类型 | 说明 |
+| --- | --- | --- |
+| `/gripper/activate` | `gas_interfaces/srv/GripperActivate` | `true` 连接 Proxy，`false` 断开 |
+| `/gripper/move` | `gas_interfaces/srv/GripperMove` | 位置映射到夹爪预设点 |
+
+测试：
+
+```bash
+ros2 service call /gripper/activate gas_interfaces/srv/GripperActivate \
+  "{gripper_index: 0, activate: true}"
+ros2 service call /gripper/move gas_interfaces/srv/GripperMove \
+  "{gripper_index: 0, position: 30, velocity: 50, force: 50, max_time_ms: 3000, wait: true}"
+```

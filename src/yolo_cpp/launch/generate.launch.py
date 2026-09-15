@@ -16,7 +16,7 @@ def _latest_handeye_result_file():
         'handeye',
         '*',
         'results',
-        'handeye_result.yaml',
+        'orbbec_orange_handeye_result.yaml',
     )
     candidates = glob.glob(pattern)
     if not candidates:
@@ -26,14 +26,14 @@ def _latest_handeye_result_file():
 
 def generate_launch_description():
     camera_launch = PathJoinSubstitution([
-        FindPackageShare('gas_bringup'),
+        FindPackageShare('orbbec_camera'),
         'launch',
-        'camera.launch.py',
+        'gemini_330_series.launch.py',
     ])
     default_camera_config = PathJoinSubstitution([
-        FindPackageShare('gas_bringup'),
+        FindPackageShare('yolo_cpp'),
         'config',
-        'realsense_camera.yaml',
+        'orbbec_gemini_330.yaml',
     ])
     default_yolo_model_path = PathJoinSubstitution([
         FindPackageShare('yolo_cpp'),
@@ -45,7 +45,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'use_camera',
             default_value='true',
-            description='Start the RealSense camera driver.',
+            description='Start the Orbbec Gemini 330 camera driver.',
         ),
         DeclareLaunchArgument(
             'use_yolo',
@@ -55,7 +55,27 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'camera_config',
             default_value=default_camera_config,
-            description='YAML file passed to the RealSense camera driver.',
+            description='YAML file passed to the Orbbec Gemini 330 driver.',
+        ),
+        DeclareLaunchArgument(
+            'camera_name',
+            default_value='camera',
+            description='Orbbec camera namespace and node name.',
+        ),
+        DeclareLaunchArgument(
+            'serial_number',
+            default_value='',
+            description='Optional Orbbec device serial number.',
+        ),
+        DeclareLaunchArgument(
+            'usb_port',
+            default_value='',
+            description='Optional Orbbec USB port selector.',
+        ),
+        DeclareLaunchArgument(
+            'log_level',
+            default_value='info',
+            description='Orbbec camera log level.',
         ),
         DeclareLaunchArgument(
             'model_path',
@@ -69,7 +89,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'point_cloud_topic',
-            default_value='/camera/depth/color/points',
+            default_value='/camera/depth_registered/points',
             description='Input point cloud topic for yolo_cpp sphere fitting.',
         ),
         DeclareLaunchArgument(
@@ -100,7 +120,11 @@ def generate_launch_description():
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(camera_launch),
             launch_arguments={
-                'camera_config': LaunchConfiguration('camera_config'),
+                'config_file_path': LaunchConfiguration('camera_config'),
+                'camera_name': LaunchConfiguration('camera_name'),
+                'serial_number': LaunchConfiguration('serial_number'),
+                'usb_port': LaunchConfiguration('usb_port'),
+                'log_level': LaunchConfiguration('log_level'),
             }.items(),
             condition=IfCondition(LaunchConfiguration('use_camera')),
         ),

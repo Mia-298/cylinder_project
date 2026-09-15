@@ -1,10 +1,41 @@
+import yaml
+
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
+
+
+def _launch_capture_ui(context):
+    params_file = LaunchConfiguration('handeye_params').perform(context)
+    with open(params_file, encoding='utf-8') as stream:
+        calibration_params = yaml.safe_load(stream)['handeye_calibration_node']['ros__parameters']
+    board_params = {
+        key: value for key, value in calibration_params.items()
+        if key.startswith('board_') or key in (
+            'image_topic', 'camera_info_topic', 'min_charuco_corners')
+    }
+    service_namespace = calibration_params.get('service_namespace', '/handeye').rstrip('/')
+    return [Node(
+        package='gas_handeye_calibration',
+        executable='handeye_capture_ui.py',
+        name='handeye_capture_ui',
+        output='screen',
+        parameters=[{
+            'add_sample_service': service_namespace + '/add_sample',
+            'clear_samples_service': service_namespace + '/clear_samples',
+            'compute_service': service_namespace + '/compute',
+            'status_service': service_namespace + '/status',
+            'handguide_service': '/robot/handguide',
+            'trajectory_config_file': LaunchConfiguration('trajectory_config_file').perform(context),
+            'display_charuco_corner_limit': 12,
+            'display_width': 1280,
+            'display_height': 960,
+        }, board_params],
+    )]
 
 
 def generate_launch_description():
@@ -26,7 +57,7 @@ def generate_launch_description():
     default_camera_config = PathJoinSubstitution([
         FindPackageShare('gas_bringup'),
         'config',
-        'realsense_handeye_camera.yaml',
+        'orbbec_handeye_camera.yaml',
     ])
     default_robot_config = PathJoinSubstitution([
         FindPackageShare('gas_robot_control'),
@@ -39,12 +70,17 @@ def generate_launch_description():
         'config',
         'handeye_calibration.yaml',
     ])
+    default_trajectory_config = PathJoinSubstitution([
+        FindPackageShare('gas_handeye_calibration'),
+        'config',
+        'handeye_auto_sampling.yaml',
+    ])
 
     return LaunchDescription([
         DeclareLaunchArgument(
             'use_camera',
             default_value='true',
-            description='Start the RealSense camera driver.',
+            description='Start the Orbbec Gemini 330 camera driver.',
         ),
         DeclareLaunchArgument(
             'use_robot',
@@ -64,7 +100,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'camera_config',
             default_value=default_camera_config,
-            description='YAML file passed to the RealSense camera driver.',
+            description='YAML file passed to the Orbbec Gemini 330 driver.',
         ),
         DeclareLaunchArgument(
             'robot_config',
@@ -74,12 +110,17 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'handeye_params',
             default_value=default_handeye_params,
-            description='YAML file passed to the hand-eye backend.',
+            description='YAML file shared by the hand-eye backend and capture GUI.',
         ),
         DeclareLaunchArgument(
             'save_root_dir',
             default_value=default_save_root_dir,
             description='Root directory used to store hand-eye sessions.',
+        ),
+        DeclareLaunchArgument(
+            'trajectory_config_file',
+            default_value=default_trajectory_config,
+            description='TCP trajectory file used by the capture GUI.',
         ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(camera_launch),
@@ -103,28 +144,8 @@ def generate_launch_description():
             }.items(),
             condition=IfCondition(LaunchConfiguration('use_handeye')),
         ),
-        Node(
-            package='gas_handeye_calibration',
-            executable='handeye_capture_ui.py',
-            name='handeye_capture_ui',
-            output='screen',
-            parameters=[{
-                'image_topic': '/camera/color/image_raw',
-                'camera_info_topic': '/camera/color/camera_info',
-                'add_sample_service': '/handeye/add_sample',
-                'clear_samples_service': '/handeye/clear_samples',
-                'compute_service': '/handeye/compute',
-                'status_service': '/handeye/status',
-                'handguide_service': '/robot/handguide',
-                'board_dictionary_id': 7,
-                'board_squares_x': 10,
-                'board_squares_y': 7,
-                'board_square_length_m': 0.025,
-                'board_marker_length_m': 0.018,
-                'display_charuco_corner_limit': 12,
-                'display_width': 1280,
-                'display_height': 960,
-            }],
+        OpaqueFunction(
+            function=_launch_capture_ui,
             condition=IfCondition(LaunchConfiguration('use_gui')),
         ),
     ])

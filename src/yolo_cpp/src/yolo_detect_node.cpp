@@ -47,7 +47,7 @@ YoloDetectNode::YoloDetectNode(bool enable_vis)
 
   point_cloud_topic_ = declare_parameter<std::string>(
     "point_cloud_topic",
-    "/camera/depth/color/points");
+    "/camera/depth_registered/points");
 
   sphere_target_class_ = declare_parameter<std::string>(
     "sphere_target_class",
@@ -429,6 +429,9 @@ void YoloDetectNode::handleDetectObjects(
     std::numeric_limits<double>::quiet_NaN();
   response->best_height_px =
     std::numeric_limits<double>::quiet_NaN();
+  response->has_alignment_offset_tool = false;
+  response->alignment_offset_tool_m.fill(
+    std::numeric_limits<double>::quiet_NaN());
 
   const Detection * best_detection = nullptr;
 
@@ -487,6 +490,8 @@ void YoloDetectNode::handleDetectObjects(
 
   if (!snapshot.located_detections.empty()) {
     const LocatedDetection & located = snapshot.located_detections.front();
+    response->has_alignment_offset_tool = located.has_alignment_offset_tool;
+    response->alignment_offset_tool_m = located.alignment_offset_tool_m;
     response->sphere_frame_id = frame_id;
     response->sphere_class_id = located.detection.class_name;
     response->sphere_confidence = static_cast<double>(located.detection.confidence);
@@ -603,6 +608,94 @@ bool YoloDetectNode::transformCameraPointToTool(
   point_tool_m[1] = y_tool / w_tool;
   point_tool_m[2] = z_tool / w_tool;
   return true;
+}
+
+bool YoloDetectNode::estimateDetectionCenterCamera(
+  const pcl::PointCloud<pcl::PointXYZ>::ConstPtr & cloud,
+  const cv::Point2f & image_point,
+  const cv::Size & image_size,
+  std::array<double, 3> & point_camera_m) const
+{
+  point_camera_m.fill(std::numeric_limits<double>::quiet_NaN());
+  if (!cloud || !cloud->isOrganized() || cloud->width == 0 || cloud->height == 0 ||
+    image_size.width <= 0 || image_size.height <= 0)
+  {
+    return false;
+  }
+
+  const double scale_x = static_cast<double>(cloud->width) / image_size.width;
+  const double scale_y = static_cast<double>(cloud->height) / image_size.height;
+  const int center_x = static_cast<int>(std::lround(image_point.x * scale_x));
+  const int center_y = static_cast<int>(std::lround(image_point.y * scale_y));
+  const int max_x = static_cast<int>(cloud->width) - 1;
+  const int max_y = static_cast<int>(cloud->height) - 1;
+
+  std::vector<pcl::PointXYZ> valid_points;
+  for (const int radius : {4, 12}) {
+    valid_points.clear();
+    const int left = std::max(0, center_x - radius);
+    const int right = std::min(max_x, center_x + radius);
+    const int top = std::max(0, center_y - radius);
+    const int bottom = std::min(max_y, center_y + radius);
+    for (int y = top; y <= bottom; ++y) {
+      for (int x = left; x <= right; ++x) {
+        const pcl::PointXYZ & point = cloud->at(x, y);
+        if (std::isfinite(point.x) && std::isfinite(point.y) &&
+          std::isfinite(point.z) && point.z > 0.05F && point.z < 5.0F)
+        {
+          valid_points.push_back(point);
+        }
+      }
+    }
+    if (!valid_points.empty()) {
+      break;
+    }
+  }
+
+  if (valid_points.empty()) {
+    return false;
+  }
+
+  auto median = [&valid_points](float pcl::PointXYZ::* member) {
+      std::vector<float> values;
+      values.reserve(valid_points.size());
+      for (const auto & point : valid_points) {
+        values.push_back(point.*member);
+      }
+      const auto middle = values.begin() + values.size() / 2;
+      std::nth_element(values.begin(), middle, values.end());
+      return static_cast<double>(*middle);
+    };
+
+  point_camera_m = {
+    median(&pcl::PointXYZ::x),
+    median(&pcl::PointXYZ::y),
+    median(&pcl::PointXYZ::z)};
+  return true;
+}
+
+bool YoloDetectNode::computeAlignmentOffsetTool(
+  const std::array<double, 3> & point_camera_m,
+  std::array<double, 3> & offset_tool_m) const
+{
+  offset_tool_m.fill(std::numeric_limits<double>::quiet_NaN());
+  if (!has_tool_camera_transform_ || !matrixIsValidHomogeneous(T_tool_camera_) ||
+    !std::isfinite(point_camera_m[0]) || !std::isfinite(point_camera_m[1]) ||
+    !std::isfinite(point_camera_m[2]))
+  {
+    return false;
+  }
+
+  // 工具原点沿这个方向移动后，目标在相机坐标系中的横向坐标会回到 0。
+  const cv::Mat lateral_camera = (cv::Mat_<double>(3, 1) <<
+    point_camera_m[0], point_camera_m[1], 0.0);
+  const cv::Mat lateral_tool =
+    T_tool_camera_(cv::Range(0, 3), cv::Range(0, 3)) * lateral_camera;
+  for (int index = 0; index < 3; ++index) {
+    offset_tool_m[static_cast<std::size_t>(index)] = lateral_tool.at<double>(index, 0);
+  }
+  return std::isfinite(offset_tool_m[0]) && std::isfinite(offset_tool_m[1]) &&
+         std::isfinite(offset_tool_m[2]);
 }
 
 bool YoloDetectNode::matrixIsValidHomogeneous(const cv::Mat & T)
@@ -909,6 +1002,19 @@ void YoloDetectNode::processCapturedBundle(
   LocatedDetection located;
   located.detection =
     *best_detection;
+
+  std::array<double, 3> detection_center_camera_m{};
+  if (estimateDetectionCenterCamera(
+      cloud,
+      best_detection->center,
+      frame.size(),
+      detection_center_camera_m) &&
+    computeAlignmentOffsetTool(
+      detection_center_camera_m,
+      located.alignment_offset_tool_m))
+  {
+    located.has_alignment_offset_tool = true;
+  }
 
   const auto sphere_fit_start =
     std::chrono::steady_clock::now();

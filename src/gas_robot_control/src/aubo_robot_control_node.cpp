@@ -135,8 +135,8 @@ public:
     handguide_srv_ = this->create_service<gas_interfaces::srv::RobotSetHandguide>(
       serviceName(service_namespace_, "handguide"),
       std::bind(
-        &AuboRobotControlNode::handguideCallback, this, std::placeholders::_1,
-        std::placeholders::_2));
+          &AuboRobotControlNode::handguideCallback, this, std::placeholders::_1,
+          std::placeholders::_2));
 
     RCLCPP_INFO(
       this->get_logger(), "AUBO services ready under namespace: %s",
@@ -566,7 +566,6 @@ private:
   double blend_radius_m_{0.0};
   double duration_s_{0.0};
   double motion_timeout_sec_{120.0};
-
   rclcpp::Service<gas_interfaces::srv::RobotConnect>::SharedPtr connect_srv_;
   rclcpp::Service<gas_interfaces::srv::RobotSetEnable>::SharedPtr enable_srv_;
   rclcpp::Service<gas_interfaces::srv::RobotGetPose>::SharedPtr get_pose_srv_;

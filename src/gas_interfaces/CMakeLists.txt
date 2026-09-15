@@ -24,6 +24,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/RobotSetEnable.srv"
   "srv/RobotSetMotionParams.srv"
   "srv/RobotStop.srv"
+  "srv/GripperActivate.srv"
+  "srv/GripperMove.srv"
   DEPENDENCIES vision_msgs
 )
 

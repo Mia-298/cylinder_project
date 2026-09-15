@@ -2,10 +2,16 @@
 
 #include <array>
 #include <chrono>
+#include <cstdint>
 #include <memory>
+#include <mutex>
 #include <string>
 
+#include "dev/gripper/gripper.hpp"
+
 #include <gas_interfaces/srv/detect_objects.hpp>
+#include <gas_interfaces/srv/gripper_activate.hpp>
+#include <gas_interfaces/srv/gripper_move.hpp>
 #include <gas_interfaces/srv/grasp_execute.hpp>
 #include <gas_interfaces/srv/robot_get_pose.hpp>
 #include <gas_interfaces/srv/robot_move_l.hpp>
@@ -20,6 +26,8 @@ class GraspExecutionNode : public rclcpp::Node
 public:
   GraspExecutionNode();
 
+  std::shared_ptr<GripperProxy::RmCeu> gripperProxyNode() const;
+
 private:
   void executeCallback(
     const std::shared_ptr<gas_interfaces::srv::GraspExecute::Request> request,
@@ -27,6 +35,7 @@ private:
 
   bool requestYoloDetection(
     bool publish_debug_image,
+    std::int64_t min_result_stamp_ns,
     bool & has_sphere_center,
     std::array<double, 3> & sphere_center_m,
     double & sphere_radius_m,
@@ -36,6 +45,9 @@ private:
     bool & has_sphere_center_tool,
     std::array<double, 3> & sphere_center_tool_m,
     std::string & sphere_tool_frame_id,
+    bool & has_alignment_offset_tool,
+    std::array<double, 3> & alignment_offset_tool_m,
+    std::int64_t & result_stamp_ns,
     std::string & error_message);
 
   bool requestRobotPose(
@@ -48,6 +60,27 @@ private:
     bool wait,
     std::string & error_message);
 
+  bool requestGripperActivation(int gripper_index, bool activate, std::string & error_message);
+
+  bool requestGripperMove(
+    int gripper_index,
+    int position,
+    int velocity,
+    int force,
+    int max_time_ms,
+    bool wait,
+    std::string & error_message);
+
+  void gripperActivateCallback(
+    const std::shared_ptr<gas_interfaces::srv::GripperActivate::Request> request,
+    std::shared_ptr<gas_interfaces::srv::GripperActivate::Response> response);
+
+  void gripperMoveCallback(
+    const std::shared_ptr<gas_interfaces::srv::GripperMove::Request> request,
+    std::shared_ptr<gas_interfaces::srv::GripperMove::Response> response);
+
+  bool ensureGripperConnectedLocked(std::string & error_message);
+
   static cv::Mat rpyToRotationMatrix(double rx, double ry, double rz);
   static cv::Mat makeHomogeneousMatrix(const cv::Mat & R, const cv::Mat & t);
 
@@ -59,11 +92,21 @@ private:
   rclcpp::Client<gas_interfaces::srv::RobotMoveL>::SharedPtr robot_move_l_client_;
 
   rclcpp::Service<gas_interfaces::srv::GraspExecute>::SharedPtr execute_srv_;
+  rclcpp::Service<gas_interfaces::srv::GripperActivate>::SharedPtr gripper_activate_srv_;
+  rclcpp::Service<gas_interfaces::srv::GripperMove>::SharedPtr gripper_move_srv_;
 
   std::string yolo_service_name_;
   std::string robot_pose_service_;
   std::string robot_move_l_service_;
+  std::string gripper_activate_service_;
+  std::string gripper_move_service_;
   std::string execute_service_name_;
+  std::string gripper_proxy_device_id_;
+  int gripper_open_point_{0};
+  int gripper_closed_point_{15};
+  bool gripper_connected_{false};
+  std::mutex gripper_mutex_;
+  std::shared_ptr<GripperProxy::RmCeu> gripper_proxy_;
 
   // 保留 GraspExecute.srv 中 approach_offset_m 字段以兼容现有接口，
   // 但其语义现在是“目标中心到预抓取 TCP 的水平安全距离”。
@@ -71,8 +114,10 @@ private:
   double min_valid_depth_m_{0.05};
   double max_valid_depth_m_{5.0};
   double min_horizontal_direction_m_{1e-4};
+  double max_alignment_move_m_{0.05};
   int service_timeout_ms_{3000};
   int move_timeout_ms_{30000};
+  int redetection_wait_timeout_ms_{5000};
 };
 
 }  // namespace gas

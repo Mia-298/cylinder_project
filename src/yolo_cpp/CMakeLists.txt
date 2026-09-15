@@ -137,7 +137,7 @@ install(
 )
 
 install(
-  DIRECTORY models launch
+  DIRECTORY models launch config
   DESTINATION share/${PROJECT_NAME}
 )
 

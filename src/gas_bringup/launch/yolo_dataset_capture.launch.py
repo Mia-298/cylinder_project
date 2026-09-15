@@ -10,11 +10,9 @@ from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
     # -------------------------------------------------------------------------
-    # 1. 找到本项目已经封装好的 RealSense 相机 launch。
+    # 1. 找到本项目已经封装好的 Orbbec 相机 launch。
     #
-    # 这里不直接 include realsense2_camera 的 rs_launch.py，而是复用
-    # gas_bringup/launch/camera.launch.py。这样相机入口只有一套，后续维护
-    # RealSense 参数时也只需要维护 camera.launch.py 和 config/*.yaml。
+    # 这里复用 gas_bringup/launch/camera.launch.py，统一启动 Orbbec G330。
     # -------------------------------------------------------------------------
     camera_launch = PathJoinSubstitution([
         FindPackageShare('gas_bringup'),
@@ -25,30 +23,30 @@ def generate_launch_description():
     # -------------------------------------------------------------------------
     # 2. 准备默认相机配置。
     #
-    # realsense_camera.yaml 会启动彩色、深度和点云。虽然 YOLO 训练主要使用
+    # orbbec_gemini_330.yaml 会启动彩色、深度和点云。虽然 YOLO 训练主要使用
     # 彩色图，但连续拍照节点本身也订阅深度图和点云；默认用完整 RGB-D
-    # 配置可以让这些订阅也有真实 RealSense 发布者，便于检查数据链路。
+    # 配置可以让这些订阅也有真实 Orbbec 发布者，便于检查数据链路。
     # 如果只想轻量采集 RGB 图片，可以启动时覆盖：
-    # camera_config:=<gas_bringup>/config/realsense_handeye_camera.yaml
+    # camera_config:=<gas_bringup>/config/orbbec_handeye_camera.yaml
     # -------------------------------------------------------------------------
     default_camera_config = PathJoinSubstitution([
         FindPackageShare('gas_bringup'),
         'config',
-        'realsense_camera.yaml',
+        'orbbec_gemini_330.yaml',
     ])
 
     return LaunchDescription([
         # ---------------------------------------------------------------------
         # 3. 总开关参数。
         #
-        # use_camera 控制是否启动 RealSense 驱动。
+        # use_camera 控制是否启动 Orbbec 驱动。
         # use_capture 控制是否启动 yolo_cpp 的连续采图节点。
         # 如果相机已经由别的终端启动，可以传 use_camera:=false，只启动采图。
         # ---------------------------------------------------------------------
         DeclareLaunchArgument(
             'use_camera',
             default_value='true',
-            description='Start the RealSense camera driver.',
+            description='Start the Orbbec Gemini 330 camera driver.',
         ),
         DeclareLaunchArgument(
             'use_capture',
@@ -57,7 +55,7 @@ def generate_launch_description():
         ),
 
         # ---------------------------------------------------------------------
-        # 4. RealSense 相机参数。
+        # 4. Orbbec 相机参数。
         #
         # 这些参数原样转交给 gas_bringup/launch/camera.launch.py。
         # 最常改的是 camera_config；多相机或固定某台相机时再改 serial_no。
@@ -65,37 +63,37 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'camera_config',
             default_value=default_camera_config,
-            description='YAML file passed to the RealSense camera driver.',
+            description='YAML file passed to the Orbbec Gemini 330 driver.',
         ),
         DeclareLaunchArgument(
             'camera_name',
             default_value='camera',
-            description='RealSense node name.',
+            description='Orbbec camera namespace and node name.',
         ),
         DeclareLaunchArgument(
             'camera_namespace',
             default_value='',
-            description='RealSense node namespace. Leave empty to keep /camera/... topics.',
+            description='Compatibility namespace argument; camera_name controls the namespace.',
         ),
         DeclareLaunchArgument(
             'serial_no',
             default_value='',
-            description='Choose a RealSense device by serial number.',
+            description='Choose an Orbbec device by serial number.',
         ),
         DeclareLaunchArgument(
             'usb_port_id',
             default_value='',
-            description='Choose a RealSense device by USB port id.',
+            description='Choose an Orbbec device by USB port id.',
         ),
         DeclareLaunchArgument(
             'device_type',
             default_value='',
-            description='Choose a RealSense device by type.',
+            description='Orbbec device type selector.',
         ),
         DeclareLaunchArgument(
             'json_file_path',
             default_value='',
-            description='Optional advanced RealSense configuration JSON file.',
+            description='Optional Orbbec SDK configuration JSON file.',
         ),
         DeclareLaunchArgument(
             'initial_reset',
@@ -118,7 +116,7 @@ def generate_launch_description():
         #
         # color_topic 是 YOLO 训练真正需要的彩色图输入。
         # depth_topic 和 pointcloud_topic 保留给按需采 RGB-D/点云数据使用，
-        # 默认话题全部对应当前 RealSense 相机链路。
+        # 默认话题全部对应当前 Orbbec 相机链路。
         # ---------------------------------------------------------------------
         DeclareLaunchArgument(
             'color_topic',
@@ -127,12 +125,12 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'depth_topic',
-            default_value='/camera/depth/image_rect_raw',
+            default_value='/camera/depth/image_raw',
             description='Depth image topic subscribed by image_capture_node.',
         ),
         DeclareLaunchArgument(
             'pointcloud_topic',
-            default_value='/camera/depth/color/points',
+            default_value='/camera/depth_registered/points',
             description='Point cloud topic subscribed by image_capture_node.',
         ),
 
@@ -207,7 +205,7 @@ def generate_launch_description():
         ),
 
         # ---------------------------------------------------------------------
-        # 8. 启动 RealSense 驱动。
+        # 8. 启动 Orbbec 驱动。
         #
         # IncludeLaunchDescription 表示“把另一个 launch 文件包含进来运行”。
         # condition=IfCondition(...) 表示只有 use_camera 为 true 时才启动。

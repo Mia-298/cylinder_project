@@ -29,7 +29,7 @@ def generate_launch_description():
     default_camera_config = PathJoinSubstitution([
         FindPackageShare("gas_bringup"),
         "config",
-        "realsense_handeye_camera.yaml",
+        "orbbec_handeye_camera.yaml",
     ])
     default_robot_config = PathJoinSubstitution([
         FindPackageShare("gas_robot_control"),
@@ -48,7 +48,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "use_camera",
             default_value="true",
-            description="Start the RealSense camera driver.",
+            description="Start the Orbbec Gemini 330 camera driver.",
         ),
         DeclareLaunchArgument(
             "use_robot",
@@ -63,7 +63,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "camera_config",
             default_value=default_camera_config,
-            description="YAML file passed to the RealSense camera driver.",
+            description="YAML file passed to the Orbbec Gemini 330 driver.",
         ),
         DeclareLaunchArgument(
             "robot_config",

@@ -22,6 +22,7 @@ constexpr int kNoRobotPose = -2005;
 constexpr int kDepthInvalid = -2006;
 constexpr int kMoveFailed = -2007;
 constexpr int kGeometryInvalid = -2008;
+constexpr int kGripperFailed = -2009;
 constexpr int kException = -2999;
 
 template<typename ServiceT>
@@ -74,6 +75,10 @@ GraspExecutionNode::GraspExecutionNode()
   yolo_service_name_ = declare_parameter<std::string>("yolo_service_name", "/yolo/detect_once");
   robot_pose_service_ = declare_parameter<std::string>("robot_pose_service", "/robot/get_pose");
   robot_move_l_service_ = declare_parameter<std::string>("robot_move_l_service", "/robot/move_l");
+  gripper_activate_service_ =
+    declare_parameter<std::string>("gripper_activate_service", "/gripper/activate");
+  gripper_move_service_ =
+    declare_parameter<std::string>("gripper_move_service", "/gripper/move");
   execute_service_name_ =
     declare_parameter<std::string>("execute_service_name", "/grasp/execute_once");
 
@@ -84,8 +89,12 @@ GraspExecutionNode::GraspExecutionNode()
   max_valid_depth_m_ = declare_parameter<double>("max_valid_depth_m", 5.0);
   min_horizontal_direction_m_ =
     declare_parameter<double>("min_horizontal_direction_m", 1e-4);
+  max_alignment_move_m_ =
+    declare_parameter<double>("max_alignment_move_m", 0.05);
   service_timeout_ms_ = declare_parameter<int>("service_timeout_ms", 3000);
   move_timeout_ms_ = declare_parameter<int>("move_timeout_ms", 30000);
+  redetection_wait_timeout_ms_ =
+    declare_parameter<int>("redetection_wait_timeout_ms", 5000);
 
   if (default_approach_offset_m_ <= 0.0) {
     default_approach_offset_m_ = 0.20;
@@ -99,11 +108,17 @@ GraspExecutionNode::GraspExecutionNode()
   if (min_horizontal_direction_m_ <= 0.0) {
     min_horizontal_direction_m_ = 1e-4;
   }
+  if (max_alignment_move_m_ <= 0.0) {
+    max_alignment_move_m_ = 0.05;
+  }
   if (service_timeout_ms_ <= 0) {
     service_timeout_ms_ = 3000;
   }
   if (move_timeout_ms_ <= 0) {
     move_timeout_ms_ = 30000;
+  }
+  if (redetection_wait_timeout_ms_ <= 0) {
+    redetection_wait_timeout_ms_ = 5000;
   }
 
   service_group_ = create_callback_group(rclcpp::CallbackGroupType::Reentrant);
@@ -121,6 +136,17 @@ GraspExecutionNode::GraspExecutionNode()
     robot_move_l_service_,
     rmw_qos_profile_services_default,
     client_group_);
+  gripper_proxy_device_id_ =
+    declare_parameter<std::string>("gripper_proxy_device_id", "griRmc0001");
+  gripper_open_point_ = declare_parameter<int>("gripper_open_point", 0);
+  gripper_closed_point_ = declare_parameter<int>("gripper_closed_point", 15);
+  gripper_open_point_ = std::clamp(gripper_open_point_, 0, 15);
+  gripper_closed_point_ = std::clamp(gripper_closed_point_, 0, 15);
+  if (gripper_proxy_device_id_.empty()) {
+    gripper_proxy_device_id_ = "griRmc0001";
+  }
+  gripper_proxy_ = std::make_shared<GripperProxy::RmCeu>(
+    gripper_proxy_device_id_ + "_proxy");
 
   execute_srv_ = create_service<gas_interfaces::srv::GraspExecute>(
     execute_service_name_,
@@ -129,11 +155,30 @@ GraspExecutionNode::GraspExecutionNode()
       std::placeholders::_1, std::placeholders::_2),
     rmw_qos_profile_services_default,
     service_group_);
+  gripper_activate_srv_ = create_service<gas_interfaces::srv::GripperActivate>(
+    gripper_activate_service_,
+    std::bind(
+      &GraspExecutionNode::gripperActivateCallback, this,
+      std::placeholders::_1, std::placeholders::_2),
+    rmw_qos_profile_services_default,
+    service_group_);
+  gripper_move_srv_ = create_service<gas_interfaces::srv::GripperMove>(
+    gripper_move_service_,
+    std::bind(
+      &GraspExecutionNode::gripperMoveCallback, this,
+      std::placeholders::_1, std::placeholders::_2),
+    rmw_qos_profile_services_default,
+    service_group_);
 
   RCLCPP_INFO(get_logger(), "grasp service: %s", execute_service_name_.c_str());
   RCLCPP_INFO(get_logger(), "yolo service: %s", yolo_service_name_.c_str());
   RCLCPP_INFO(get_logger(), "robot pose service: %s", robot_pose_service_.c_str());
   RCLCPP_INFO(get_logger(), "robot move_l service: %s", robot_move_l_service_.c_str());
+  RCLCPP_INFO(get_logger(), "gripper activate service: %s", gripper_activate_service_.c_str());
+  RCLCPP_INFO(get_logger(), "gripper move service: %s", gripper_move_service_.c_str());
+  RCLCPP_INFO(
+    get_logger(), "HyRMS gripper proxy: device_id=%s open_point=%d closed_point=%d",
+    gripper_proxy_device_id_.c_str(), gripper_open_point_, gripper_closed_point_);
   RCLCPP_INFO(
     get_logger(),
     "default horizontal standoff: %.3f m",
@@ -154,6 +199,26 @@ void GraspExecutionNode::executeCallback(
     response->depth_m = -1.0;
     response->debug_summary.clear();
 
+    if (request->close_gripper) {
+      if (!request->wait) {
+        response->error_code = kGripperFailed;
+        response->message = "close_gripper requires wait=true so the robot reaches pre-grasp first";
+        return;
+      }
+      if (request->gripper_index < 0 || request->gripper_position < 0 ||
+        request->gripper_position > 100 || request->gripper_velocity < 0 ||
+        request->gripper_velocity > 100 || request->gripper_force < 0 ||
+        request->gripper_force > 100 || request->gripper_max_time_ms < 0 ||
+        request->gripper_max_time_ms > 30000)
+      {
+        response->error_code = kGripperFailed;
+        response->message =
+          "invalid gripper parameters: index >= 0, position/velocity/force in [0,100], "
+          "max_time_ms in [0,30000]";
+        return;
+      }
+    }
+
     bool has_sphere_center = false;
     std::array<double, 3> sphere_center_m{};
     double sphere_radius_m = std::numeric_limits<double>::quiet_NaN();
@@ -164,10 +229,14 @@ void GraspExecutionNode::executeCallback(
     bool has_sphere_center_tool = false;
     std::array<double, 3> sphere_center_tool_m{};
     std::string sphere_tool_frame_id;
+    bool has_alignment_offset_tool = false;
+    std::array<double, 3> alignment_offset_tool_m{};
+    std::int64_t result_stamp_ns = -1;
 
     std::string yolo_error;
     if (!requestYoloDetection(
           request->publish_debug_image,
+          -1,
           has_sphere_center,
           sphere_center_m,
           sphere_radius_m,
@@ -177,6 +246,9 @@ void GraspExecutionNode::executeCallback(
           has_sphere_center_tool,
           sphere_center_tool_m,
           sphere_tool_frame_id,
+          has_alignment_offset_tool,
+          alignment_offset_tool_m,
+          result_stamp_ns,
           yolo_error))
     {
       response->error_code = kNoDetection;
@@ -185,9 +257,94 @@ void GraspExecutionNode::executeCallback(
     }
 
     if (!has_sphere_center || !finitePoint3(sphere_center_m)) {
-      response->error_code = kNoDetection;
-      response->message = "YOLO did not return a valid fitted 3D sphere center in camera frame";
-      return;
+      if (!has_alignment_offset_tool) {
+        response->error_code = kNoDetection;
+        response->message =
+          "YOLO did not return a valid sphere center or a usable alignment offset";
+        return;
+      }
+      if (!request->wait) {
+        response->error_code = kNoDetection;
+        response->message =
+          "sphere fit failed; alignment retry requires wait=true";
+        return;
+      }
+
+      std::array<double, 6> alignment_pose{};
+      cv::Mat T_base_tool;
+      std::string robot_error;
+      if (!requestRobotPose(alignment_pose, T_base_tool, robot_error)) {
+        response->error_code = kNoRobotPose;
+        response->message = robot_error;
+        return;
+      }
+
+      double alignment_norm = std::sqrt(
+        alignment_offset_tool_m[0] * alignment_offset_tool_m[0] +
+        alignment_offset_tool_m[1] * alignment_offset_tool_m[1] +
+        alignment_offset_tool_m[2] * alignment_offset_tool_m[2]);
+      if (!std::isfinite(alignment_norm) || alignment_norm <= 1e-6) {
+        response->error_code = kNoDetection;
+        response->message = "sphere fit failed; calculated alignment move is invalid";
+        return;
+      }
+      if (alignment_norm > max_alignment_move_m_) {
+        const double scale = max_alignment_move_m_ / alignment_norm;
+        for (double & value : alignment_offset_tool_m) {
+          value *= scale;
+        }
+        alignment_norm = max_alignment_move_m_;
+      }
+
+      const cv::Mat delta_tool = (cv::Mat_<double>(3, 1) <<
+        alignment_offset_tool_m[0],
+        alignment_offset_tool_m[1],
+        alignment_offset_tool_m[2]);
+      const cv::Mat delta_base =
+        T_base_tool(cv::Range(0, 3), cv::Range(0, 3)) * delta_tool;
+      for (int index = 0; index < 3; ++index) {
+        alignment_pose[static_cast<std::size_t>(index)] +=
+          delta_base.at<double>(index, 0);
+      }
+
+      RCLCPP_WARN(
+        get_logger(),
+        "Sphere fit failed; aligning to YOLO box center with MoveL delta %.4f m",
+        alignment_norm);
+      std::string move_error;
+      if (!requestMoveL(alignment_pose, true, move_error)) {
+        response->error_code = kMoveFailed;
+        response->message = move_error;
+        return;
+      }
+
+      if (!requestYoloDetection(
+          request->publish_debug_image,
+          result_stamp_ns,
+          has_sphere_center,
+          sphere_center_m,
+          sphere_radius_m,
+          sphere_frame_id,
+          sphere_class_id,
+          sphere_confidence,
+          has_sphere_center_tool,
+          sphere_center_tool_m,
+          sphere_tool_frame_id,
+          has_alignment_offset_tool,
+          alignment_offset_tool_m,
+          result_stamp_ns,
+          yolo_error))
+      {
+        response->error_code = kNoDetection;
+        response->message = yolo_error;
+        return;
+      }
+      if (!has_sphere_center || !finitePoint3(sphere_center_m)) {
+        response->error_code = kNoDetection;
+        response->message =
+          "YOLO sphere fit is still invalid after one alignment retry";
+        return;
+      }
     }
 
     const double depth_m = sphere_center_m[2];
@@ -308,6 +465,38 @@ void GraspExecutionNode::executeCallback(
     response->depth_m = depth_m;
     response->debug_summary = summary.str();
 
+    if (request->close_gripper) {
+      std::string gripper_error;
+      if (request->activate_gripper &&
+        !requestGripperActivation(request->gripper_index, true, gripper_error))
+      {
+        response->success = false;
+        response->error_code = kGripperFailed;
+        response->message = gripper_error;
+        response->debug_summary += " gripper_activation=failed";
+        return;
+      }
+      if (!requestGripperMove(
+          request->gripper_index,
+          request->gripper_position,
+          request->gripper_velocity,
+          request->gripper_force,
+          request->gripper_max_time_ms,
+          request->gripper_wait,
+          gripper_error))
+      {
+        response->success = false;
+        response->error_code = kGripperFailed;
+        response->message = gripper_error;
+        response->debug_summary += " gripper_move=failed";
+        return;
+      }
+      response->message = request->gripper_wait
+        ? "horizontal pre-grasp target reached and gripper motion completed"
+        : "horizontal pre-grasp target reached and gripper motion command sent";
+      response->debug_summary += " gripper_close_requested=true";
+    }
+
     RCLCPP_INFO(get_logger(), "%s", response->debug_summary.c_str());
   } catch (const std::exception & e) {
     response->success = false;
@@ -319,6 +508,7 @@ void GraspExecutionNode::executeCallback(
 
 bool GraspExecutionNode::requestYoloDetection(
   bool publish_debug_image,
+  std::int64_t min_result_stamp_ns,
   bool & has_sphere_center,
   std::array<double, 3> & sphere_center_m,
   double & sphere_radius_m,
@@ -328,6 +518,9 @@ bool GraspExecutionNode::requestYoloDetection(
   bool & has_sphere_center_tool,
   std::array<double, 3> & sphere_center_tool_m,
   std::string & sphere_tool_frame_id,
+  bool & has_alignment_offset_tool,
+  std::array<double, 3> & alignment_offset_tool_m,
+  std::int64_t & result_stamp_ns,
   std::string & error_message)
 {
   has_sphere_center = false;
@@ -340,30 +533,53 @@ bool GraspExecutionNode::requestYoloDetection(
   has_sphere_center_tool = false;
   sphere_center_tool_m.fill(std::numeric_limits<double>::quiet_NaN());
   sphere_tool_frame_id.clear();
+  has_alignment_offset_tool = false;
+  alignment_offset_tool_m.fill(std::numeric_limits<double>::quiet_NaN());
+  result_stamp_ns = -1;
 
-  auto request = std::make_shared<gas_interfaces::srv::DetectObjects::Request>();
-  request->publish_debug_image = publish_debug_image;
-  auto response = callServiceSync<gas_interfaces::srv::DetectObjects>(
-    yolo_client_, request, std::chrono::milliseconds(service_timeout_ms_), error_message);
-  if (!response) {
-    return false;
+  const auto deadline = std::chrono::steady_clock::now() +
+    std::chrono::milliseconds(redetection_wait_timeout_ms_);
+  while (rclcpp::ok()) {
+    auto request = std::make_shared<gas_interfaces::srv::DetectObjects::Request>();
+    request->publish_debug_image = publish_debug_image;
+    auto response = callServiceSync<gas_interfaces::srv::DetectObjects>(
+      yolo_client_, request, std::chrono::milliseconds(service_timeout_ms_), error_message);
+    if (!response) {
+      return false;
+    }
+    if (!response->success) {
+      error_message = response->message;
+      return false;
+    }
+
+    result_stamp_ns =
+      static_cast<std::int64_t>(response->detections.header.stamp.sec) * 1000000000LL +
+      static_cast<std::int64_t>(response->detections.header.stamp.nanosec);
+    if (min_result_stamp_ns < 0 || result_stamp_ns > min_result_stamp_ns) {
+      has_sphere_center = response->has_sphere_center;
+      sphere_center_m = response->sphere_center_m;
+      sphere_radius_m = response->sphere_radius_m;
+      sphere_frame_id = response->sphere_frame_id;
+      sphere_class_id = response->sphere_class_id;
+      sphere_confidence = response->sphere_confidence;
+
+      has_sphere_center_tool = response->has_sphere_center_tool;
+      sphere_center_tool_m = response->sphere_center_tool_m;
+      sphere_tool_frame_id = response->sphere_tool_frame_id;
+      has_alignment_offset_tool = response->has_alignment_offset_tool;
+      alignment_offset_tool_m = response->alignment_offset_tool_m;
+      return true;
+    }
+
+    if (std::chrono::steady_clock::now() >= deadline) {
+      error_message = "timed out waiting for a new YOLO detection snapshot";
+      return false;
+    }
+    std::this_thread::sleep_for(20ms);
   }
-  if (!response->success) {
-    error_message = response->message;
-    return false;
-  }
 
-  has_sphere_center = response->has_sphere_center;
-  sphere_center_m = response->sphere_center_m;
-  sphere_radius_m = response->sphere_radius_m;
-  sphere_frame_id = response->sphere_frame_id;
-  sphere_class_id = response->sphere_class_id;
-  sphere_confidence = response->sphere_confidence;
-
-  has_sphere_center_tool = response->has_sphere_center_tool;
-  sphere_center_tool_m = response->sphere_center_tool_m;
-  sphere_tool_frame_id = response->sphere_tool_frame_id;
-  return true;
+  error_message = "ROS 2 is shutting down while waiting for YOLO detection";
+  return false;
 }
 
 bool GraspExecutionNode::requestRobotPose(
@@ -417,6 +633,124 @@ bool GraspExecutionNode::requestMoveL(
     return false;
   }
   return true;
+}
+
+bool GraspExecutionNode::requestGripperActivation(
+  int gripper_index, bool activate, std::string & error_message)
+{
+  if (gripper_index != 0) {
+    error_message = "Only gripper_index=0 is supported by the RmCeu Proxy.";
+    return false;
+  }
+
+  std::lock_guard<std::mutex> lock(gripper_mutex_);
+  if (activate) {
+    if (ensureGripperConnectedLocked(error_message)) {
+      return true;
+    }
+    return false;
+  }
+
+  if (!gripper_connected_) {
+    return true;
+  }
+  const int result = gripper_proxy_->disconnect();
+  if (result != 0) {
+    error_message = "HyRMS gripper disconnect failed: " + std::to_string(result);
+    return false;
+  }
+  gripper_connected_ = false;
+  return true;
+}
+
+bool GraspExecutionNode::requestGripperMove(
+  int gripper_index,
+  int position,
+  int velocity,
+  int force,
+  int max_time_ms,
+  bool wait,
+  std::string & error_message)
+{
+  (void)velocity;
+  (void)force;
+  (void)max_time_ms;
+  (void)wait;
+  if (gripper_index != 0 || position < 0 || position > 100) {
+    error_message =
+      "RmCeu Proxy requires gripper_index=0 and position in [0,100].";
+    return false;
+  }
+
+  std::lock_guard<std::mutex> lock(gripper_mutex_);
+  if (!ensureGripperConnectedLocked(error_message)) {
+    return false;
+  }
+
+  const double ratio = static_cast<double>(position) / 100.0;
+  const int point = static_cast<int>(std::lround(
+    static_cast<double>(gripper_open_point_) +
+    ratio * static_cast<double>(gripper_closed_point_ - gripper_open_point_)));
+  const int result = gripper_proxy_->goPoint(std::clamp(point, 0, 15));
+  if (result != 0) {
+    error_message = "HyRMS gripper goPoint failed: " + std::to_string(result);
+    if (!gripper_proxy_->msg.empty()) {
+      error_message += " (" + gripper_proxy_->msg + ")";
+    }
+    return false;
+  }
+  return true;
+}
+
+std::shared_ptr<GripperProxy::RmCeu> GraspExecutionNode::gripperProxyNode() const
+{
+  return gripper_proxy_;
+}
+
+bool GraspExecutionNode::ensureGripperConnectedLocked(std::string & error_message)
+{
+  if (gripper_connected_) {
+    return true;
+  }
+  const int result = gripper_proxy_->connect();
+  if (result != 0) {
+    error_message = "HyRMS gripper connect failed: " + std::to_string(result);
+    if (!gripper_proxy_->msg.empty()) {
+      error_message += " (" + gripper_proxy_->msg + ")";
+    }
+    return false;
+  }
+  gripper_connected_ = true;
+  return true;
+}
+
+void GraspExecutionNode::gripperActivateCallback(
+  const std::shared_ptr<gas_interfaces::srv::GripperActivate::Request> request,
+  std::shared_ptr<gas_interfaces::srv::GripperActivate::Response> response)
+{
+  std::string error_message;
+  const bool success = requestGripperActivation(
+    request->gripper_index, request->activate, error_message);
+  response->success = success;
+  response->error_code = success ? kSuccess : kGripperFailed;
+  response->message = success
+    ? (request->activate ? "HyRMS gripper connected." : "HyRMS gripper disconnected.")
+    : error_message;
+}
+
+void GraspExecutionNode::gripperMoveCallback(
+  const std::shared_ptr<gas_interfaces::srv::GripperMove::Request> request,
+  std::shared_ptr<gas_interfaces::srv::GripperMove::Response> response)
+{
+  std::string error_message;
+  const bool success = requestGripperMove(
+    request->gripper_index, request->position, request->velocity, request->force,
+    request->max_time_ms, request->wait, error_message);
+  response->success = success;
+  response->error_code = success ? kSuccess : kGripperFailed;
+  response->message = success
+    ? "HyRMS gripper point command completed."
+    : error_message;
 }
 
 cv::Mat GraspExecutionNode::rpyToRotationMatrix(double rx, double ry, double rz)

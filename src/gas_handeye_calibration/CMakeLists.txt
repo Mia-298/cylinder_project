@@ -53,6 +53,11 @@ install(PROGRAMS
   DESTINATION lib/${PROJECT_NAME}
 )
 
+install(DIRECTORY scripts/handeye_auto_sampling
+  DESTINATION lib/${PROJECT_NAME}
+  FILES_MATCHING PATTERN "*.py"
+)
+
 install(DIRECTORY
   launch
   config

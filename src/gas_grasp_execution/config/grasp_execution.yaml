@@ -3,7 +3,16 @@ gas_grasp_execution_node:
     yolo_service_name: /yolo/detect_once
     robot_pose_service: /robot/get_pose
     robot_move_l_service: /robot/move_l
+    gripper_activate_service: /gripper/activate
+    gripper_move_service: /gripper/move
     execute_service_name: /grasp/execute_once
+
+    # HyRMS Proxy device configuration. The lower computer must expose
+    # <gripper_proxy_device_id>_cmd and <gripper_proxy_device_id>_state.
+    gripper_proxy_device_id: griRmc0001
+    # RmCeu exposes 16 preset points (0..15), not continuous position/force APIs.
+    gripper_open_point: 0
+    gripper_closed_point: 15
 
     # 与 GraspExecute.srv 的 approach_offset_m 语义一致：
     # 目标中心到预抓取 TCP 在 base XY 平面内的水平距离。
@@ -12,5 +21,7 @@ gas_grasp_execution_node:
     min_valid_depth_m: 0.05
     max_valid_depth_m: 5.0
     min_horizontal_direction_m: 0.0001
+    max_alignment_move_m: 0.05
     service_timeout_ms: 3000
     move_timeout_ms: 30000
+    redetection_wait_timeout_ms: 5000

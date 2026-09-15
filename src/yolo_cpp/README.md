@@ -18,7 +18,7 @@
 | 参数 | 主链路值 |
 | --- | --- |
 | `image_topic` | `/camera/color/image_raw` |
-| `point_cloud_topic` | `/camera/depth/color/points` |
+| `point_cloud_topic` | `/camera/depth_registered/points` |
 | `model_path` | `yolo_cpp/models/best.onnx` |
 | `sphere_target_class` | `class_0` |
 | `capture_interval_sec` | `0.5` |
@@ -42,6 +42,8 @@ gas_interfaces/srv/DetectObjects
 - `sphere_center_m`：相机坐标系下三维球心，单位 m。
 - `sphere_radius_m`：拟合球半径，单位 m。
 - `sphere_frame_id`：点云坐标系。
+- `has_alignment_offset_tool`：是否能根据二维框中心附近的点云和手眼结果计算对准平移量。
+- `alignment_offset_tool_m`：将二维框中心移向图像中心时，末端在 Tool 坐标系下的建议平移量，单位 m。
 
 ## 启动
 
@@ -81,7 +83,7 @@ ros2 service call /yolo/detect_once gas_interfaces/srv/DetectObjects \
 球拟合依赖 organized point cloud。当前主链路应检查：
 
 ```bash
-ros2 topic hz /camera/depth/color/points
+ros2 topic hz /camera/depth_registered/points
 ```
 
 如果日志出现：
@@ -94,7 +96,7 @@ point cloud is not organized
 
 1. 是否从 `gas_bringup/perception.launch.py` 或 `gas_bringup/grasp_pipeline.launch.py` 启动。
 2. 相机是否启用了 `ordered_pc=true`。
-3. 点云话题是否是 `/camera/depth/color/points`。
+3. 点云话题是否是 `/camera/depth_registered/points`。
 4. 目标 ROI 内是否有足够有效深度点。
 
 ## 与抓取节点的关系

@@ -1,0 +1,22 @@
+# Absolute TCP poses in the robot base frame; x/y/z in metres, rx/ry/rz in radians.
+# RPY follows /robot/get_pose: R = Rz(rz) * Ry(ry) * Rx(rx).
+frame: base
+angle_unit: rad
+settle_time_sec: 1.0
+move_timeout_sec: 120.0
+service_timeout_sec: 15.0
+position_tolerance_m: 0.001
+orientation_tolerance_rad: 0.01
+
+# Demonstration trajectory from eight previously recorded TCP poses.
+# Before the first automatic run, verify every point in the robot teach pendant.
+# Each point is reached by MoveL and sampled once. No automatic return motion.
+poses:
+  - [0.520848, 0.065866, 0.406194, 2.707731, 0.150317, 1.788379]
+  - [0.432720, 0.295934, 0.527419, 2.899666, 0.662064, 2.337871]
+  - [0.556801, -0.005707, 0.573418, 2.724987, -0.143102, 1.688810]
+  - [0.700954, 0.031056, 0.465229, 2.869774, -0.003839, 1.639687]
+  - [0.856331, 0.005256, 0.474758, -2.912072, 0.014146, 1.540787]
+  - [0.638770, 0.584792, 0.584571, -3.036848, 0.590003, 2.445415]
+  - [0.476839, -0.058403, 0.379238, 2.463654, -0.006533, 1.867452]
+  - [0.443931, 0.289835, 0.412223, 2.882055, 0.516432, 2.384158]
