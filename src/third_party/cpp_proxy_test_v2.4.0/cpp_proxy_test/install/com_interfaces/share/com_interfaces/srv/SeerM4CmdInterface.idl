@@ -1,0 +1,40 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from com_interfaces/srv/SeerM4CmdInterface.srv
+// generated code does not contain a copyright notice
+
+#include "com_interfaces/msg/AgvOrderState.idl"
+
+module com_interfaces {
+  module srv {
+    struct SeerM4CmdInterface_Request {
+      @verbatim (language="comment", text=
+        "指令ID")
+      int32 id;
+
+      @verbatim (language="comment", text=
+        "点位")
+      string point;
+
+      @verbatim (language="comment", text=
+        "货箱ID")
+      string container_id;
+
+      @verbatim (language="comment", text=
+        "运单号")
+      string order_id;
+    };
+    struct SeerM4CmdInterface_Response {
+      @verbatim (language="comment", text=
+        "错误码")
+      int32 err_code;
+
+      string msg;
+
+      @verbatim (language="comment", text=
+        "运单号")
+      string order_id;
+
+      com_interfaces::msg::AgvOrderState order_state;
+    };
+  };
+};

@@ -1,0 +1,2 @@
+source;share/cpp_proxy_test/environment/ament_prefix_path.sh
+source;share/cpp_proxy_test/environment/path.sh

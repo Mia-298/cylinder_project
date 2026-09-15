@@ -1,0 +1,26 @@
+// generated from rosidl_adapter/resource/msg.idl.em
+// with input from com_interfaces/msg/base/AgvLoc.msg
+// generated code does not contain a copyright notice
+
+
+module com_interfaces {
+  module msg {
+    @verbatim (language="comment", text=
+      "机器人在世界坐标系中的位置")
+    struct AgvLoc {
+      double x;
+
+      double y;
+
+      double angle;
+
+      double confidence;
+
+      string current_station;
+
+      string last_station;
+
+      int32 loc_method;
+    };
+  };
+};

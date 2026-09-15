@@ -1,0 +1,12 @@
+from com_interfaces.srv._aubo_cmd_interface import AuboCmdInterface  # noqa: F401
+from com_interfaces.srv._fr_cmd_interface import FrCmdInterface  # noqa: F401
+from com_interfaces.srv._realsense_cmd_interface import RealsenseCmdInterface  # noqa: F401
+from com_interfaces.srv._rfid_reader_cmd_interface import RfidReaderCmdInterface  # noqa: F401
+from com_interfaces.srv._rm_ceu_cmd_interface import RmCeuCmdInterface  # noqa: F401
+from com_interfaces.srv._seer_ctrl_cmd_interface import SeerCtrlCmdInterface  # noqa: F401
+from com_interfaces.srv._seer_m4_cmd_interface import SeerM4CmdInterface  # noqa: F401
+from com_interfaces.srv._siemens_plc_cmd_interface import SiemensPlcCmdInterface  # noqa: F401
+from com_interfaces.srv._smart_more_cmd_interface import SmartMoreCmdInterface  # noqa: F401
+from com_interfaces.srv._virt_agv_cmd_interface import VirtAgvCmdInterface  # noqa: F401
+from com_interfaces.srv._virt_dev_cmd_interface import VirtDevCmdInterface  # noqa: F401
+from com_interfaces.srv._vision_engine_cmd_interface import VisionEngineCmdInterface  # noqa: F401

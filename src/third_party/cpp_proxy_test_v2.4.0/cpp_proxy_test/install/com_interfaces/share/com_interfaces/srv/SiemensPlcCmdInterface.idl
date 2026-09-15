@@ -1,0 +1,33 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from com_interfaces/srv/SiemensPlcCmdInterface.srv
+// generated code does not contain a copyright notice
+
+
+module com_interfaces {
+  module srv {
+    struct SiemensPlcCmdInterface_Request {
+      @verbatim (language="comment", text=
+        "指令ID")
+      int32 id;
+
+      @verbatim (language="comment", text=
+        "引脚")
+      uint16 pin;
+
+      @verbatim (language="comment", text=
+        "数字引脚状态")
+      uint8 dpin_state;
+    };
+    struct SiemensPlcCmdInterface_Response {
+      @verbatim (language="comment", text=
+        "数字引脚状态")
+      uint8 dpin_state;
+
+      @verbatim (language="comment", text=
+        "错误码")
+      int32 err_code;
+
+      string msg;
+    };
+  };
+};

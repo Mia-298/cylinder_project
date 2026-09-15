@@ -1,0 +1,62 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from com_interfaces/srv/VirtAgvCmdInterface.srv
+// generated code does not contain a copyright notice
+
+#include "com_interfaces/msg/AgvStation.idl"
+
+module com_interfaces {
+  module srv {
+    struct VirtAgvCmdInterface_Request {
+      @verbatim (language="comment", text=
+        "指令ID")
+      int32 id;
+
+      @verbatim (language="comment", text=
+        "站点")
+      string station;
+
+      @verbatim (language="comment", text=
+        "站点列表")
+      sequence<string> station_list;
+
+      @verbatim (language="comment", text=
+        "手动控制 x方向线速度 vx (机器人坐标系，单位 m/s)")
+      float manual_x;
+
+      @verbatim (language="comment", text=
+        "手动控制 y方向线速度 vy (机器人坐标系，单位 m/s)")
+      float manual_y;
+
+      @verbatim (language="comment", text=
+        "手动控制 角速度 w (单位 rad/s，逆时针为正，顺时针为负)")
+      float manual_w;
+
+      @verbatim (language="comment", text=
+        "手动控制持续时间  (单位 ms, 0 持续执行直到下条指令 | >0 持续指定时间后停止 | <0 视作忽略该参数)")
+      int32 manual_duration;
+    };
+    struct VirtAgvCmdInterface_Response {
+      @verbatim (language="comment", text=
+        "错误码")
+      int32 err_code;
+
+      string msg;
+
+      @verbatim (language="comment", text=
+        "导航状态 0 = NONE, 1 = WAITING(目前不可能出现该状态), 2 = RUNNING, 3 = SUSPENDED, 4 = COMPLETED, 5 = FAILED, 6 = CANCELED")
+      int32 task_status;
+
+      @verbatim (language="comment", text=
+        "导航类型 0 = 没有导航, 1 = 自由导航到任意点, 2 = 自由导航到站点, 3 = 路径导航到站点, 7 = 平动转动, 100 = 其他")
+      int32 task_type;
+
+      @verbatim (language="comment", text=
+        "导航目标站点")
+      string target_station;
+
+      com_interfaces::msg::AgvStation current_station;
+
+      sequence<com_interfaces::msg::AgvStation> station_list;
+    };
+  };
+};
