@@ -18,7 +18,7 @@ ros2 launch gas_handeye_calibration handeye_calibration.launch.py
 
 该入口会启动：
 
-- RealSense 彩色相机和 `/camera/color/camera_info`
+- Orbbec Gemini 330 彩色相机和 `/camera/color/camera_info`
 - AUBO 控制节点
 - `handeye_calibration_node`
 - `handeye_capture_ui.py`

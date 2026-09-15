@@ -1,0 +1,2 @@
+# RealSense is no longer part of the active camera pipeline.
+# Keep this vendor tree for reference without discovering its ROS packages.

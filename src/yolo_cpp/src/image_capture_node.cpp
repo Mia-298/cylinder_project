@@ -193,11 +193,11 @@ private:
 
     declare_parameter<std::string>(
       "depth_topic",
-      "/camera/depth/image_rect_raw");
+      "/camera/depth/image_raw");
 
     declare_parameter<std::string>(
       "pointcloud_topic",
-      "/camera/depth/color/points");
+      "/camera/depth_registered/points");
 
     /*
      * 保持彩色图保存目录兼容性。

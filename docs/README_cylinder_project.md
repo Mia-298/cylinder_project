@@ -1,10 +1,10 @@
-# Cylinder Project：RealSense 图像采集与调试
+# Cylinder Project：Orbbec Gemini 330 图像采集与调试
 
 本文件是当前工程的采图、视觉调试和模块运行补充说明。总入口说明见 `README.md`。
 
-当前相机主链路已经切到 RealSense：
+当前相机主链路使用 Orbbec Gemini 330：
 
-- 相机驱动：`src/third_party/realsense-ros-ros2`
+- 相机驱动：工作空间中的 `orbbec_camera` ROS2 包
 - 统一相机入口：`ros2 launch gas_bringup camera.launch.py`
 - 历史相机目录已通过 `COLCON_IGNORE` 排除
 
@@ -14,10 +14,10 @@
 | --- | --- | --- |
 | 彩色图 | `/camera/color/image_raw` | `sensor_msgs/msg/Image` |
 | 相机内参 | `/camera/color/camera_info` | `sensor_msgs/msg/CameraInfo` |
-| 深度图 | `/camera/depth/image_rect_raw` | `sensor_msgs/msg/Image` |
-| 对齐点云 | `/camera/depth/color/points` | `sensor_msgs/msg/PointCloud2` |
+| 深度图 | `/camera/depth/image_raw` | `sensor_msgs/msg/Image` |
+| 对齐点云 | `/camera/depth_registered/points` | `sensor_msgs/msg/PointCloud2` |
 
-抓取和球拟合只使用 `/camera/depth/color/points`，不再使用旧的 `/camera/depth_registered/points`。
+抓取和球拟合只使用 `/camera/depth_registered/points`。
 
 ## 1. 工作空间
 
@@ -47,7 +47,7 @@ source install/setup.bash
 
 | 目标 | 命令 | 说明 |
 | --- | --- | --- |
-| 只启动相机 | `ros2 launch gas_bringup camera.launch.py` | RealSense 驱动 |
+| 只启动相机 | `ros2 launch gas_bringup camera.launch.py` | Orbbec Gemini 330 驱动 |
 | 检查相机和点云 | `ros2 launch gas_bringup perception.launch.py use_yolo:=false` | 不启动 YOLO |
 | 启动视觉检测 | `ros2 launch gas_bringup perception.launch.py` | 相机 + YOLO |
 | 视觉调试 | `ros2 launch gas_bringup yolo_debug.launch.py` | 调试检测显示 |
@@ -60,7 +60,7 @@ source install/setup.bash
 
 ## 3. 相机检查
 
-只检查 RealSense 输出：
+只检查 Orbbec 输出：
 
 ```bash
 ros2 launch gas_bringup perception.launch.py use_yolo:=false
@@ -70,11 +70,11 @@ ros2 launch gas_bringup perception.launch.py use_yolo:=false
 
 ```bash
 ros2 topic hz /camera/color/image_raw
-ros2 topic hz /camera/depth/color/points
-ros2 topic info /camera/depth/color/points
+ros2 topic hz /camera/depth_registered/points
+ros2 topic info /camera/depth_registered/points
 ```
 
-`/camera/depth/color/points` 的发布者应来自 `realsense2_camera_node`。
+`/camera/depth_registered/points` 的发布者应来自 `orbbec_camera` 的 G330 launch。
 
 ## 4. 图像和点云采集
 
@@ -136,12 +136,15 @@ has_sphere_center=true
 sphere_center_m=[x, y, z]
 ```
 
-如果出现 `point cloud is not organized`，优先检查 `src/gas_bringup/config/realsense_camera.yaml` 中是否保持：
+如果出现 `point cloud is not organized`，优先检查 `src/gas_bringup/config/orbbec_gemini_330.yaml` 中是否保持：
 
 ```yaml
-pointcloud.enable: true
-pointcloud.ordered_pc: true
-align_depth.enable: true
+enable_point_cloud: true
+enable_colored_point_cloud: true
+ordered_pc: true
+depth_registration: true
+enable_hole_filling_filter: true
+enable_spatial_filter: true
 ```
 
 ## 6. 模型更新

@@ -25,6 +25,8 @@ set(HYRMS_COM_INTERFACES_INCLUDE_DIR "${HYRMS_COM_INTERFACES_ROOT}/include/com_i
 set(HYRMS_COM_INTERFACES_LIB_DIR "${HYRMS_COM_INTERFACES_ROOT}/lib")
 set(HYRMS_COM_INTERFACES_TYPESUPPORT_LIB
   "${HYRMS_COM_INTERFACES_LIB_DIR}/libcom_interfaces__rosidl_typesupport_cpp.so")
+file(GLOB HYRMS_COM_INTERFACES_RUNTIME_LIBS
+  "${HYRMS_COM_INTERFACES_LIB_DIR}/libcom_interfaces*.so")
 
 foreach(_hyrms_file IN ITEMS
     "${HYRMS_PROXY_INCLUDE_DIR}/dev/gripper/gripper.hpp"
@@ -35,6 +37,10 @@ foreach(_hyrms_file IN ITEMS
     message(FATAL_ERROR "HyRMS Proxy SDK file not found: ${_hyrms_file}")
   endif()
 endforeach()
+
+if(NOT HYRMS_COM_INTERFACES_RUNTIME_LIBS)
+  message(FATAL_ERROR "No com_interfaces runtime libraries found in ${HYRMS_COM_INTERFACES_LIB_DIR}")
+endif()
 
 add_executable(gas_grasp_execution_node
   src/main.cpp
@@ -75,7 +81,7 @@ install(TARGETS
 
 install(FILES
   ${HYRMS_PROXY_LIB}
-  ${HYRMS_COM_INTERFACES_TYPESUPPORT_LIB}
+  ${HYRMS_COM_INTERFACES_RUNTIME_LIBS}
   DESTINATION lib
 )
 

@@ -47,7 +47,7 @@ YoloDetectNode::YoloDetectNode(bool enable_vis)
 
   point_cloud_topic_ = declare_parameter<std::string>(
     "point_cloud_topic",
-    "/camera/depth/color/points");
+    "/camera/depth_registered/points");
 
   sphere_target_class_ = declare_parameter<std::string>(
     "sphere_target_class",

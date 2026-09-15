@@ -1,0 +1,26 @@
+# Orbbec Gemini 330 configuration used by the perception pipeline.
+# The colored cloud is aligned to the color image and remains organized so
+# yolo_cpp can map image pixels back to 3D points.
+device_type: camera
+depth_registration: true
+enable_color: true
+enable_depth: true
+
+enable_point_cloud: true
+enable_colored_point_cloud: true
+ordered_pc: true
+point_cloud_decimation_filter_factor: 1
+align_mode: SW
+align_target_stream: COLOR
+
+# Depth post-processing.
+enable_spatial_filter: true
+spatial_filter_alpha: 0.5
+spatial_filter_diff_threshold: 160
+spatial_filter_magnitude: 2
+spatial_filter_radius: 2
+enable_hole_filling_filter: true
+hole_filling_filter_mode: FILL_NEAREST
+
+publish_tf: true
+tf_publish_rate: 0.0

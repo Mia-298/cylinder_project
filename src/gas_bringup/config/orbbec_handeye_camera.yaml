@@ -1,0 +1,9 @@
+# Hand-eye calibration uses only the Orbbec color stream and camera info.
+device_type: camera
+depth_registration: false
+enable_color: true
+enable_depth: false
+enable_point_cloud: false
+enable_colored_point_cloud: false
+publish_tf: true
+tf_publish_rate: 0.0
