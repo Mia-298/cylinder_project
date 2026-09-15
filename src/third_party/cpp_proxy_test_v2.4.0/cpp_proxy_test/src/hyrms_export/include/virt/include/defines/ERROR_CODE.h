@@ -1,0 +1,11 @@
+#ifndef VIRT_ERROR_CODE_H_
+#define VIRT_ERROR_CODE_H_
+
+// 定义错误
+
+#define ERR_DEV_VIRT_OTHERS -1500
+#define ERR_DEV_VIRT_CONNECT_FAILED -1501
+#define ERR_DEV_VIRT_NO_SUCH_MSG -1502
+#define ERR_DEV_VIRT_SUCCESS 0
+
+#endif

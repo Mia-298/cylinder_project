@@ -1,0 +1,31 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from com_interfaces/srv/SmartMoreCmdInterface.srv
+// generated code does not contain a copyright notice
+
+
+module com_interfaces {
+  module srv {
+    struct SmartMoreCmdInterface_Request {
+      @verbatim (language="comment", text=
+        "指令ID")
+      int32 id;
+
+      @verbatim (language="comment", text=
+        "请求消息")
+      string req;
+    };
+    struct SmartMoreCmdInterface_Response {
+      @verbatim (language="comment", text=
+        "错误码")
+      int32 err_code;
+
+      @verbatim (language="comment", text=
+        "错误提示信息")
+      string msg;
+
+      @verbatim (language="comment", text=
+        "设备响应消息")
+      string res;
+    };
+  };
+};

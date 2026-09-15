@@ -1,0 +1,79 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-.-5b06d36e357a43d6ed08.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.12"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"name" : "",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "cpp_proxy_test",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "cpp_proxy_test::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-cpp_proxy_test-71d4197e143f03330ebd.json",
+					"name" : "cpp_proxy_test",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "cpp_proxy_test_uninstall::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-cpp_proxy_test_uninstall-d06dd4434a856324035a.json",
+					"name" : "cpp_proxy_test_uninstall",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "uninstall::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-uninstall-f207fb3ecc3b49e7a2bd.json",
+					"name" : "uninstall",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/build/cpp_proxy_test",
+		"source" : "/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/src/cpp_proxy_test"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 3
+	}
+}

@@ -1,0 +1,55 @@
+﻿// NOLINT: This file starts with a BOM since it contain non-ASCII characters
+// generated from rosidl_generator_c/resource/idl__struct.h.em
+// with input from com_interfaces:msg/AgvLoc.idl
+// generated code does not contain a copyright notice
+
+#ifndef COM_INTERFACES__MSG__DETAIL__AGV_LOC__STRUCT_H_
+#define COM_INTERFACES__MSG__DETAIL__AGV_LOC__STRUCT_H_
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+
+// Constants defined in the message
+
+// Include directives for member types
+// Member 'current_station'
+// Member 'last_station'
+#include "rosidl_runtime_c/string.h"
+
+/// Struct defined in msg/AgvLoc in the package com_interfaces.
+/**
+  * 机器人在世界坐标系中的位置
+ */
+typedef struct com_interfaces__msg__AgvLoc
+{
+  double x;
+  double y;
+  double angle;
+  double confidence;
+  rosidl_runtime_c__String current_station;
+  rosidl_runtime_c__String last_station;
+  int32_t loc_method;
+} com_interfaces__msg__AgvLoc;
+
+// Struct for a sequence of com_interfaces__msg__AgvLoc.
+typedef struct com_interfaces__msg__AgvLoc__Sequence
+{
+  com_interfaces__msg__AgvLoc * data;
+  /// The number of valid items in data
+  size_t size;
+  /// The number of allocated items in data
+  size_t capacity;
+} com_interfaces__msg__AgvLoc__Sequence;
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif  // COM_INTERFACES__MSG__DETAIL__AGV_LOC__STRUCT_H_

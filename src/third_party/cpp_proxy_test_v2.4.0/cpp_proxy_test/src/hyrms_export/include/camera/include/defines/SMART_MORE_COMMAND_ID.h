@@ -1,0 +1,10 @@
+#ifndef SMART_MORE_COMMAND_ID_H_
+#define SMART_MORE_COMMAND_ID_H_
+
+// 定义设备RPC编号
+
+#define SMART_MORE_CONNECT 0
+#define SMART_MORE_DISCONNECT 1
+#define SMART_MORE_SEND_MSG 2
+
+#endif

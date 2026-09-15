@@ -1,0 +1,42 @@
+[0.005s] Invoking command in '/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/build/cpp_proxy_test': AMENT_PREFIX_PATH=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces/lib:${LD_LIBRARY_PATH} PYTHONPATH=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/src/cpp_proxy_test -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_FLAGS=-Wno-unknown-pragmas -DCMAKE_CXX_STANDARD=17 -DCMAKE_CXX_STANDARD_REQUIRED=ON -G Ninja -DCMAKE_BUILD_TYPE= -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_INSTALL_PREFIX=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/cpp_proxy_test
+[0.014s] -- Found ament_cmake: 1.3.14 (/opt/ros/humble/share/ament_cmake/cmake)
+[0.098s] -- Found rclcpp: 16.0.19 (/opt/ros/humble/share/rclcpp/cmake)
+[0.118s] -- Found rosidl_generator_c: 3.1.8 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+[0.119s] -- Found rosidl_adapter: 3.1.8 (/opt/ros/humble/share/rosidl_adapter/cmake)
+[0.123s] -- Found rosidl_generator_cpp: 3.1.8 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+[0.130s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[0.138s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[0.159s] -- Found rmw_implementation_cmake: 6.1.2 (/opt/ros/humble/share/rmw_implementation_cmake/cmake)
+[0.160s] -- Found rmw_fastrtps_cpp: 6.2.10 (/opt/ros/humble/share/rmw_fastrtps_cpp/cmake)
+[0.236s] -- Using RMW implementation 'rmw_fastrtps_cpp' as default
+[0.268s] -- Found rclcpp_action: 16.0.19 (/opt/ros/humble/share/rclcpp_action/cmake)
+[0.288s] -- Found com_interfaces: 0.0.0 (/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces/share/com_interfaces/cmake)
+[0.307s] -- Found ament_cmake_gtest: 1.3.14 (/opt/ros/humble/share/ament_cmake_gtest/cmake)
+[0.351s] -- Configuring done
+[0.358s] -- Generating done
+[0.368s] -- Build files have been written to: /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/build/cpp_proxy_test
+[0.373s] Invoked command in '/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/build/cpp_proxy_test' returned '0': AMENT_PREFIX_PATH=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces/lib:${LD_LIBRARY_PATH} PYTHONPATH=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/src/cpp_proxy_test -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_FLAGS=-Wno-unknown-pragmas -DCMAKE_CXX_STANDARD=17 -DCMAKE_CXX_STANDARD_REQUIRED=ON -G Ninja -DCMAKE_BUILD_TYPE= -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_INSTALL_PREFIX=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/cpp_proxy_test
+[0.374s] Invoking command in '/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/build/cpp_proxy_test': AMENT_PREFIX_PATH=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces/lib:${LD_LIBRARY_PATH} PYTHONPATH=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --build /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/build/cpp_proxy_test -- -j16 -l16
+[0.385s] ninja: no work to do.
+[0.386s] Invoked command in '/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/build/cpp_proxy_test' returned '0': AMENT_PREFIX_PATH=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces/lib:${LD_LIBRARY_PATH} PYTHONPATH=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --build /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/build/cpp_proxy_test -- -j16 -l16
+[0.388s] Invoking command in '/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/build/cpp_proxy_test': AMENT_PREFIX_PATH=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces/lib:${LD_LIBRARY_PATH} PYTHONPATH=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --install /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/build/cpp_proxy_test
+[0.392s] -- Install configuration: ""
+[0.392s] -- Up-to-date: /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/cpp_proxy_test/lib
+[0.392s] -- Up-to-date: /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/cpp_proxy_test/lib/libhyrms_export.so
+[0.392s] -- Up-to-date: /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/cpp_proxy_test/lib/cpp_proxy_test/cpp_proxy_test
+[0.392s] -- Up-to-date: /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/cpp_proxy_test/share/ament_index/resource_index/package_run_dependencies/cpp_proxy_test
+[0.392s] -- Up-to-date: /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/cpp_proxy_test/share/ament_index/resource_index/parent_prefix_path/cpp_proxy_test
+[0.392s] -- Up-to-date: /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/cpp_proxy_test/share/cpp_proxy_test/environment/ament_prefix_path.sh
+[0.392s] -- Installing: /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/cpp_proxy_test/share/cpp_proxy_test/environment/ament_prefix_path.dsv
+[0.392s] -- Up-to-date: /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/cpp_proxy_test/share/cpp_proxy_test/environment/path.sh
+[0.393s] -- Installing: /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/cpp_proxy_test/share/cpp_proxy_test/environment/path.dsv
+[0.393s] -- Up-to-date: /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/cpp_proxy_test/share/cpp_proxy_test/local_setup.bash
+[0.393s] -- Up-to-date: /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/cpp_proxy_test/share/cpp_proxy_test/local_setup.sh
+[0.393s] -- Up-to-date: /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/cpp_proxy_test/share/cpp_proxy_test/local_setup.zsh
+[0.393s] -- Installing: /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/cpp_proxy_test/share/cpp_proxy_test/local_setup.dsv
+[0.393s] -- Installing: /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/cpp_proxy_test/share/cpp_proxy_test/package.dsv
+[0.393s] -- Up-to-date: /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/cpp_proxy_test/share/ament_index/resource_index/packages/cpp_proxy_test
+[0.393s] -- Up-to-date: /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/cpp_proxy_test/share/cpp_proxy_test/cmake/cpp_proxy_testConfig.cmake
+[0.393s] -- Up-to-date: /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/cpp_proxy_test/share/cpp_proxy_test/cmake/cpp_proxy_testConfig-version.cmake
+[0.393s] -- Up-to-date: /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/cpp_proxy_test/share/cpp_proxy_test/package.xml
+[0.394s] Invoked command in '/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/build/cpp_proxy_test' returned '0': AMENT_PREFIX_PATH=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces:${AMENT_PREFIX_PATH} CMAKE_PREFIX_PATH=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces:/opt/ros/humble LD_LIBRARY_PATH=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces/lib:${LD_LIBRARY_PATH} PYTHONPATH=/home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/install/com_interfaces/local/lib/python3.10/dist-packages:${PYTHONPATH} /usr/bin/cmake --install /home/hyrms/ros2_ws/HyRMS/agent/cpp_proxy_test/build/cpp_proxy_test

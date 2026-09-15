@@ -1,0 +1,29 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from com_interfaces/srv/RfidReaderCmdInterface.srv
+// generated code does not contain a copyright notice
+
+
+module com_interfaces {
+  module srv {
+    struct RfidReaderCmdInterface_Request {
+      @verbatim (language="comment", text=
+        "指令ID")
+      int32 id;
+
+      @verbatim (language="comment", text=
+        "读写器功率")
+      int32 power;
+    };
+    struct RfidReaderCmdInterface_Response {
+      @verbatim (language="comment", text=
+        "错误码")
+      int32 err_code;
+
+      string msg;
+
+      @verbatim (language="comment", text=
+        "读取到的标签数据")
+      string data;
+    };
+  };
+};

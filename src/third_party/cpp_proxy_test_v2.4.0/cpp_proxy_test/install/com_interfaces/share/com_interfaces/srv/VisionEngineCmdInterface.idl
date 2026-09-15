@@ -1,0 +1,58 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from com_interfaces/srv/VisionEngineCmdInterface.srv
+// generated code does not contain a copyright notice
+
+#include "com_interfaces/msg/SphereLoc.idl"
+#include "com_interfaces/msg/YoloResult.idl"
+
+module com_interfaces {
+  module srv {
+    typedef double double__6[6];
+    struct VisionEngineCmdInterface_Request {
+      @verbatim (language="comment", text=
+        "指令ID")
+      int32 id;
+
+      @verbatim (language="comment", text=
+        "机械臂末端姿态, 笛卡尔坐标:0-2对应tran坐标的xyz,3-5对应rpy位姿的rx,ry,rz")
+      double__6 desc;
+
+      @verbatim (language="comment", text=
+        "YOLO模型初始化" "\n"
+        "ONNX模型路径")
+      string model_path;
+
+      @verbatim (language="comment", text=
+        "模型输入高度")
+      int32 input_height;
+
+      @verbatim (language="comment", text=
+        "模型输入宽度")
+      int32 input_width;
+
+      @verbatim (language="comment", text=
+        "YOLO检测参数" "\n"
+        "置信度阈值")
+      double confidence_threshold;
+
+      @verbatim (language="comment", text=
+        "非极大值抑制阈值")
+      double nms_threshold;
+    };
+    struct VisionEngineCmdInterface_Response {
+      @verbatim (language="comment", text=
+        "错误码")
+      int32 err_code;
+
+      string msg;
+
+      @verbatim (language="comment", text=
+        "YOLO检测结果")
+      sequence<com_interfaces::msg::YoloResult> results;
+
+      @verbatim (language="comment", text=
+        "球体在相机坐标系中的位置,单位m")
+      com_interfaces::msg::SphereLoc sphere_loc;
+    };
+  };
+};

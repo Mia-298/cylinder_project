@@ -1,0 +1,19 @@
+<package format="3">
+  <name>hyrms_export</name>
+  <version>2.0.0</version>
+  <description>复合机器人下位机导出包</description>
+  <maintainer email="2733879291@qq.com">bszydxh</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>rclcpp_action</depend>
+  <depend>rcl_interfaces</depend>
+  
+  <depend>com_interfaces</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

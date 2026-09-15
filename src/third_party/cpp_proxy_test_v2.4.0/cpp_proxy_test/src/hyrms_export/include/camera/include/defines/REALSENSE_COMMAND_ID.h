@@ -1,0 +1,9 @@
+#ifndef REALSENSE_COMMAND_ID_H_
+#define REALSENSE_COMMAND_ID_H_
+
+// 定义设备RPC编号
+
+#define REALSENSE_CONNECT 0
+#define REALSENSE_DISCONNECT 1
+
+#endif

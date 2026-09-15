@@ -1,0 +1,15 @@
+#ifndef SEER_M4_COMMAND_ID_H_
+#define SEER_M4_COMMAND_ID_H_
+
+// 定义设备RPC编号
+
+#define SEER_M4_CONNECT 0
+#define SEER_M4_DISCONNECT 1
+#define SEER_M4_LOAD_CARGO 2
+#define SEER_M4_UNLOAD_CARGO 3
+#define SEER_M4_GO_POINT 4
+#define SEER_M4_GET_ORDER_ID 5
+#define SEER_M4_GET_ORDER_STATE 6
+#define SEER_M4_CANCEL_ORDER 7
+
+#endif

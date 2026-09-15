@@ -1,0 +1,22 @@
+// generated from rosidl_adapter/resource/msg.idl.em
+// with input from com_interfaces/msg/base/YoloResult.msg
+// generated code does not contain a copyright notice
+
+
+module com_interfaces {
+  module msg {
+    struct YoloResult {
+      int32 class_id;
+
+      double confidence;
+
+      int32 x;
+
+      int32 y;
+
+      int32 width;
+
+      int32 height;
+    };
+  };
+};

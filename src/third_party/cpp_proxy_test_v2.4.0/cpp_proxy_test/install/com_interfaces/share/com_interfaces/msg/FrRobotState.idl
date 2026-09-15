@@ -1,0 +1,112 @@
+// generated from rosidl_adapter/resource/msg.idl.em
+// with input from com_interfaces/msg/FrRobotState.msg
+// generated code does not contain a copyright notice
+
+
+module com_interfaces {
+  module msg {
+    typedef double double__6[6];
+    typedef uint16 uint16__2[2];
+    struct FrRobotState {
+      @verbatim (language="comment", text=
+        "多机械臂需通过编号来区别")
+      int32 robot_index;
+
+      @verbatim (language="comment", text=
+        "表示机械臂的作用或任务")
+      string robot_name;
+
+      @verbatim (language="comment", text=
+        "机械臂型号")
+      string robot_type;
+
+      @verbatim (language="comment", text=
+        "机械臂软件版本")
+      string robot_soft_index;
+
+      @verbatim (language="comment", text=
+        "机器人的IP号")
+      string robot_ip;
+
+      @verbatim (language="comment", text=
+        "当前任务")
+      int32 curtask_index;
+
+      @verbatim (language="comment", text=
+        "当前任务的执行步骤")
+      int32 curstep_index;
+
+      @verbatim (language="comment", text=
+        "程序运行状态")
+      uint8 program_state;
+
+      @verbatim (language="comment", text=
+        "运动状态")
+      uint8 robot_motion_done;
+
+      @verbatim (language="comment", text=
+        "错误码")
+      uint8 robot_err_code;
+
+      @verbatim (language="comment", text=
+        "主故障码 弃用")
+      int32 main_code;
+
+      @verbatim (language="comment", text=
+        "子故障码 弃用")
+      int32 sub_code;
+
+      @verbatim (language="comment", text=
+        "机器人模式 手动或者自动")
+      uint8 robot_mode;
+
+      @verbatim (language="comment", text=
+        "机器人速度 返回百分比")
+      double robot_speed;
+
+      @verbatim (language="comment", text=
+        "关节位置")
+      double__6 jt_cur_pos;
+
+      @verbatim (language="comment", text=
+        "笛卡尔位置")
+      double__6 tl_cur_pos;
+
+      @verbatim (language="comment", text=
+        "控制箱数字量IO输出15-8")
+      uint8 cl_dgt_output_h;
+
+      @verbatim (language="comment", text=
+        "控制箱数字量IO输出7-0")
+      uint8 cl_dgt_output_l;
+
+      @verbatim (language="comment", text=
+        "控制箱数字量IO输入15-8")
+      uint8 cl_dgt_input_h;
+
+      @verbatim (language="comment", text=
+        "控制箱数字量IO输入7-0")
+      uint8 cl_dgt_input_l;
+
+      @verbatim (language="comment", text=
+        "控制箱模拟输入AI")
+      uint16__2 cl_analog_input;
+
+      @verbatim (language="comment", text=
+        "控制箱模拟输出AO")
+      uint16__2 cl_analog_output;
+
+      @verbatim (language="comment", text=
+        "工具数字量IO输出7-0 仅bit0和bit1")
+      uint8 tl_dgt_output_l;
+
+      @verbatim (language="comment", text=
+        "工具数字量IO输入7-0 仅bit0和bit1")
+      uint8 tl_dgt_input_l;
+
+      @verbatim (language="comment", text=
+        "急停标志")
+      uint8 emergency_stop;
+    };
+  };
+};

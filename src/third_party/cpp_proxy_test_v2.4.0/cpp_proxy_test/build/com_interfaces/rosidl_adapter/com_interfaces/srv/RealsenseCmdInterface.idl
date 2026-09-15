@@ -1,0 +1,21 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from com_interfaces/srv/RealsenseCmdInterface.srv
+// generated code does not contain a copyright notice
+
+
+module com_interfaces {
+  module srv {
+    struct RealsenseCmdInterface_Request {
+      @verbatim (language="comment", text=
+        "指令ID")
+      int32 id;
+    };
+    struct RealsenseCmdInterface_Response {
+      @verbatim (language="comment", text=
+        "错误码")
+      int32 err_code;
+
+      string msg;
+    };
+  };
+};

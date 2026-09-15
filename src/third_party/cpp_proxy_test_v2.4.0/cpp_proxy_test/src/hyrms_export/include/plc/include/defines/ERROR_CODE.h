@@ -1,0 +1,20 @@
+#ifndef PLC_ERROR_CODE_H_
+#define PLC_ERROR_CODE_H_
+
+// 定义错误
+
+#define ERR_DEV_PLC_OTHERS -1500
+#define ERR_DEV_PLC_CONNECT_FAILED -1501
+#define ERR_DEV_PLC_NO_SUCH_MSG -1502
+#define ERR_DEV_PLC_SUCCESS 0
+
+#define PLC_OK 0
+#define PLC_CREATE_ERROR -1
+#define PLC_SLAVE_ERROR -2
+#define PLC_CONN_ERROR -3
+#define PLC_WRITE_ERROR -4
+#define PLC_READ_ERROR -5
+#define PLC_KEEP_ERROR -6
+#define PLC_PARAM_ERROR -7
+
+#endif

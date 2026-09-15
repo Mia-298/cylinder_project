@@ -1,0 +1,24 @@
+<package format="3">
+  <name>cpp_proxy_test</name>
+  <version>2.0.0</version>
+  <description>复合机器人下位机cpp_proxy测试</description>
+  <maintainer email="2733879291@qq.com">bszydxh</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>rclcpp_action</depend>
+  <depend>rclcpp_components</depend>
+  <depend>rcl_interfaces</depend>
+  
+  <depend>com_interfaces</depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+  <test_depend>ament_cmake_gtest</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

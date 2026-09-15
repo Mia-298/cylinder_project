@@ -1,0 +1,11 @@
+source;share/hyrms_export/hook/cmake_prefix_path.ps1
+source;share/hyrms_export/hook/cmake_prefix_path.dsv
+source;share/hyrms_export/hook/cmake_prefix_path.sh
+source;share/hyrms_export/hook/ld_library_path_lib.ps1
+source;share/hyrms_export/hook/ld_library_path_lib.dsv
+source;share/hyrms_export/hook/ld_library_path_lib.sh
+source;share/hyrms_export/local_setup.bash
+source;share/hyrms_export/local_setup.dsv
+source;share/hyrms_export/local_setup.ps1
+source;share/hyrms_export/local_setup.sh
+source;share/hyrms_export/local_setup.zsh

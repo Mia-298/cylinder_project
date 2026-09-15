@@ -1,0 +1,60 @@
+// generated from rosidl_adapter/resource/msg.idl.em
+// with input from com_interfaces/msg/VirtAgvState.msg
+// generated code does not contain a copyright notice
+
+
+module com_interfaces {
+  module msg {
+    struct VirtAgvState {
+      @verbatim (language="comment", text=
+        "名称")
+      string name;
+
+      @verbatim (language="comment", text=
+        "错误码")
+      int32 err_code;
+
+      @verbatim (language="comment", text=
+        "错误提示信息")
+      string err_msg;
+
+      @verbatim (language="comment", text=
+        "小车位置" "\n"
+        "小车的x坐标")
+      double pose_x;
+
+      @verbatim (language="comment", text=
+        "小车的y坐标")
+      double pose_y;
+
+      @verbatim (language="comment", text=
+        "小车的angle坐标")
+      double angle;
+
+      @verbatim (language="comment", text=
+        "小车的定位可信度")
+      double confidence;
+
+      @verbatim (language="comment", text=
+        "离小车最近站点的id")
+      string current_station;
+
+      @verbatim (language="comment", text=
+        "小车上一个站点的id")
+      string last_station;
+
+      @verbatim (language="comment", text=
+        "小车的速度" "\n"
+        "小车在x方向上的速度,单位:m/s")
+      double vel_x;
+
+      @verbatim (language="comment", text=
+        "小车在y方向上的速度,单位:m/s")
+      double vel_y;
+
+      @verbatim (language="comment", text=
+        "小车的角速度,顺时针为正,单位:rad/s")
+      double vel_ang;
+    };
+  };
+};

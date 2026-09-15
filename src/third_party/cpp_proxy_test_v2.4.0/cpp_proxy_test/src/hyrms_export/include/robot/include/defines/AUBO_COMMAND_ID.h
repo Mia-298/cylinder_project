@@ -1,0 +1,52 @@
+#ifndef AUBO_COMMAND_ID_H_
+#define AUBO_COMMAND_ID_H_
+
+// 启动指令
+#define AUBO_CONNECT 0
+#define AUBO_DISCONNECT 1
+#define AUBO_ENABLE 2
+#define AUBO_SETMODE 3
+#define AUBO_ISCONNECT 4
+// 运动指令
+#define AUBO_MOVEAXIS 20
+#define AUBO_MOVEJ 21
+#define AUBO_MOVEL 22
+#define AUBO_SETVEC 23
+#define AUBO_SETACC 24
+#define AUBO_MOVEPATH 25
+#define AUBO_CSV_MOVEPATH 26
+// 写值
+#define AUBO_SETR 40
+#define AUBO_SETIO 41
+// 获取值
+#define AUBO_GETSTATE 50
+#define AUBO_GETR 51
+#define AUBO_GETIO 52
+#define AUBO_GETJOINT 53
+#define AUBO_GETDESC 54
+#define AUBO_RECORD_PATH 55
+
+// 加载程序
+#define AUBO_PROGRAM_LOAD 61
+
+// 夹爪
+#define AUBO_ACT_GRIPPER 70
+#define AUBO_MOVE_GRIPPER 71
+
+// 非阻塞运动
+#define AUBO_START_MOVEL 80
+#define AUBO_START_MOVEJ 81
+#define AUBO_STOP_MOTION 82
+#define AUBO_PAUSE_MOTION 83
+#define AUBO_RESUME_MOTION 84
+
+// 力传感器
+#define AUBO_FT_ACTIVATE 110
+#define AUBO_FT_SETZERO 111
+#define AUBO_FT_GET_FORCE_TORQUE_RCS 112
+#define AUBO_FT_GET_FORCE_TORQUE_ORIGIN 113
+
+// 清除错误
+#define ERRCLEAR 100
+
+#endif

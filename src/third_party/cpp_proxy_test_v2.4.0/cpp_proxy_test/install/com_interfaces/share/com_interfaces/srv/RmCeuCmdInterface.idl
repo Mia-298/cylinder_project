@@ -1,0 +1,25 @@
+// generated from rosidl_adapter/resource/srv.idl.em
+// with input from com_interfaces/srv/RmCeuCmdInterface.srv
+// generated code does not contain a copyright notice
+
+
+module com_interfaces {
+  module srv {
+    struct RmCeuCmdInterface_Request {
+      @verbatim (language="comment", text=
+        "指令ID")
+      int32 id;
+
+      @verbatim (language="comment", text=
+        "点位编号")
+      int32 point;
+    };
+    struct RmCeuCmdInterface_Response {
+      @verbatim (language="comment", text=
+        "错误码")
+      int32 err_code;
+
+      string msg;
+    };
+  };
+};
